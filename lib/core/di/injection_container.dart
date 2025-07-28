@@ -4,6 +4,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Core
 import '../network/simple_api_client.dart';
@@ -72,4 +76,10 @@ Future<void> init() async {
   sl.registerLazySingleton(() => Connectivity());
   sl.registerLazySingleton(() => GoogleSignIn());
   sl.registerLazySingleton(() => FacebookAuth.instance);
+  
+  // Firebase services
+  sl.registerLazySingleton(() => FirebaseAuth.instance);
+  sl.registerLazySingleton(() => FirebaseFirestore.instance);
+  sl.registerLazySingleton(() => FirebaseStorage.instance);
+  sl.registerLazySingleton(() => FirebaseMessaging.instance);
 }

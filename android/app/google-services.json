@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "1011179499871",
+    "firebase_url": "https://thecaiosenorita8967-default-rtdb.firebaseio.com",
+    "project_id": "thecaiosenorita8967",
+    "storage_bucket": "thecaiosenorita8967.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1011179499871:android:6acea4be51f17f66d906ea",
+        "android_client_info": {
+          "package_name": "com.sundeep.senorita"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1011179499871-hvv9sovailiegpc7h3qjcc9ovoem6c3d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD16KZJ4oGMxllyYjN6cPMKFYGqBWOiqu8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1011179499871-hvv9sovailiegpc7h3qjcc9ovoem6c3d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
