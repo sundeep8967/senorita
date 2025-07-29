@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../../core/themes/colors.dart';
-import '../../../../core/themes/premium_theme.dart';
+import 'dart:ui';
+import '../../../../core/themes/ios_glassmorphism_theme.dart';
+import '../../../../core/widgets/glassmorphism_widgets.dart';
 import '../../domain/entities/profile.dart';
 import '../../../payment/domain/entities/payment.dart';
 import '../../../meetup/domain/entities/meetup.dart';
@@ -35,11 +36,12 @@ class _PaidSwipeDialogState extends State<PaidSwipeDialog> {
       description: 'Perfect for a casual first meetup',
       includes: [
         '🏨 Premium cafe venue',
-        '☕ Beverages for both',
-        '🚗 Free cab for her',
+        '☕ Beverages for both (YOU PAY)',
+        '🚗 FREE cab pickup & drop for her',
         '🛡️ Safety guarantee',
         '⏰ 2-hour time slot',
-        '📞 24/7 support'
+        '📞 24/7 support',
+        '💰 She pays NOTHING!'
       ],
       type: PackageType.basic,
     ),
@@ -50,8 +52,8 @@ class _PaidSwipeDialogState extends State<PaidSwipeDialog> {
       description: 'Elegant dining experience',
       includes: [
         '🏨 5-star hotel restaurant',
-        '🍽️ 3-course meal for both',
-        '🚗 Free cab pickup & drop for her',
+        '🍽️ 3-course meal for both (YOU PAY)',
+        '🚗 FREE cab pickup & drop for her',
         '🛡️ Premium safety guarantee',
         '⏰ 3-hour time slot',
         '📞 Dedicated concierge',
@@ -100,19 +102,13 @@ class _PaidSwipeDialogState extends State<PaidSwipeDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(maxHeight: 0.8.sh),
-        decoration: BoxDecoration(
-          gradient: PremiumTheme.primaryGradient,
-          borderRadius: BorderRadius.circular(24.r),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
+      child: IOSGlassmorphismTheme.glassBlur(
+        borderRadius: 24,
+        child: Container(
+          constraints: BoxConstraints(maxHeight: 0.8.sh),
+          decoration: IOSGlassmorphismTheme.glassContainer(
+            borderRadius: 24,
+          ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

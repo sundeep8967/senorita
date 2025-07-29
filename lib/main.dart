@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/themes/premium_theme.dart';
+import 'core/themes/ios_glassmorphism_theme.dart';
 import 'core/navigation/app_router.dart';
 import 'features/onboarding/presentation/pages/splash_screen.dart';
 import 'firebase_options.dart';
@@ -40,9 +40,9 @@ class SenoritaApp extends StatelessWidget {
         return MaterialApp(
           title: 'Senorita - Premium Dating',
           debugShowCheckedModeBanner: false,
-          theme: PremiumTheme.lightTheme,
-          darkTheme: PremiumTheme.darkTheme,
-          themeMode: ThemeMode.light,
+          theme: IOSGlassmorphismTheme.theme,
+          darkTheme: IOSGlassmorphismTheme.theme,
+          themeMode: ThemeMode.dark,
           home: const SplashScreen(),
           onGenerateRoute: AppRouter.generateRoute,
         );

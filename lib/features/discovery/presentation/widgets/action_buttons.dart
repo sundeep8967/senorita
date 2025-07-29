@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../../core/themes/premium_theme.dart';
+import 'dart:ui';
+import '../../../../core/themes/ios_glassmorphism_theme.dart';
 
 class ActionButtons extends StatefulWidget {
   final VoidCallback? onPass;
@@ -76,7 +77,7 @@ class _ActionButtonsState extends State<ActionButtons>
             _buildActionButton(
               controller: _passController,
               icon: Icons.close,
-              color: PremiumTheme.textSecondary,
+              color: IOSGlassmorphismTheme.iosBlue,
               size: 60.w,
               onPressed: widget.onPass,
             ),
@@ -85,7 +86,7 @@ class _ActionButtonsState extends State<ActionButtons>
             _buildActionButton(
               controller: _superLikeController,
               icon: Icons.star,
-              color: PremiumTheme.accentOrange,
+              color: IOSGlassmorphismTheme.iosOrange,
               size: 50.w,
               onPressed: widget.onSuperLike,
             ),
@@ -94,7 +95,7 @@ class _ActionButtonsState extends State<ActionButtons>
             _buildActionButton(
               controller: _likeController,
               icon: Icons.favorite,
-              color: PremiumTheme.primaryPink,
+              color: IOSGlassmorphismTheme.iosPink,
               size: 60.w,
               onPressed: widget.onLike,
             ),
@@ -118,66 +119,79 @@ class _ActionButtonsState extends State<ActionButtons>
             child: Container(
               width: double.infinity,
               height: 56.h,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    PremiumTheme.primaryPink,
-                    PremiumTheme.accentOrange,
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(28.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: PremiumTheme.primaryPink.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+              decoration: IOSGlassmorphismTheme.premiumButton(
+                gradient: IOSGlassmorphismTheme.primaryGradient,
+                borderRadius: 28,
+                shadowColor: IOSGlassmorphismTheme.iosPink,
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(28.r),
-                  onTap: widget.onPaidSwipe,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.restaurant,
-                        color: Colors.white,
-                        size: 24.sp,
-                      ),
-                      SizedBox(width: 12.w),
-                      Text(
-                        'Meet for Dinner',
-                        style: TextStyle(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(width: 8.w),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8.w,
-                          vertical: 4.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Text(
-                          '₹500+',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.bold,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28.r),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(28.r),
+                      onTap: widget.onPaidSwipe,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.restaurant,
                             color: Colors.white,
+                            size: 24.sp,
                           ),
-                        ),
+                          SizedBox(width: 12.w),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Meet for Dinner',
+                                style: TextStyle(
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              Text(
+                                'She pays nothing!',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(width: 8.w),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8.w,
+                              vertical: 4.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(12.r),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              '₹500+',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: -0.1,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -209,13 +223,22 @@ class _ActionButtonsState extends State<ActionButtons>
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: Colors.white,
+                gradient: IOSGlassmorphismTheme.buttonGradient,
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: IOSGlassmorphismTheme.glassBorder,
+                  width: 1.5,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: color.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    blurRadius: 1,
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),

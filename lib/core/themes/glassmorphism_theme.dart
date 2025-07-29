@@ -1,13 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
 
 class GlassmorphismTheme {
-  // Core glassmorphism colors
-  static const Color primaryBlack = Color(0xFF000000);
-  static const Color transparentWhite = Color(0x1AFFFFFF);
-  static const Color transparentBlack = Color(0x40000000);
-  static const Color glassWhite = Color(0x0DFFFFFF);
-  static const Color borderGlass = Color(0x33FFFFFF);
+  // iOS-style glassmorphism colors
+  static const Color glassBackground = Color(0x1AFFFFFF);
+  static const Color glassBorder = Color(0x2AFFFFFF);
+  static const Color glassHighlight = Color(0x40FFFFFF);
+  static const Color iosBlue = Color(0xFF007AFF);
+  static const Color iosPink = Color(0xFFFF2D92);
+  static const Color iosOrange = Color(0xFFFF9500);
+  static const Color iosGreen = Color(0xFF30D158);
+  
+  // Premium gradients
+  static const LinearGradient primaryGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFFF6B9D),
+      Color(0xFFC44569),
+      Color(0xFF6C5CE7),
+    ],
+  );
+  
+  static const LinearGradient backgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF0F0C29),
+      Color(0xFF24243e),
+      Color(0xFF302B63),
+    ],
+  );
+  
+  static const LinearGradient cardGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0x20FFFFFF),
+      Color(0x10FFFFFF),
+    ],
+  );
   
   // Glassmorphism container decoration
   static BoxDecoration glassContainer({

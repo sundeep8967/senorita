@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/themes/colors.dart';
+import 'dart:ui';
+import '../../../../core/themes/ios_glassmorphism_theme.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/widgets/glassmorphism_widgets.dart';
 import '../../domain/entities/profile.dart';
 import '../bloc/discovery_bloc.dart';
 import '../widgets/profile_card.dart';
@@ -95,66 +97,131 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
     String hotelId,
     DateTime dateTime,
   ) {
-    // TODO: Integrate with PaidSwipeRight use case
-    // For now, show success message
+    // Show payment processing
+    context.showInfoSnackBar('Processing payment...');
+    
+    // Simulate payment flow - in real app, integrate with Razorpay
+    Future.delayed(const Duration(seconds: 2), () {
+      // Payment successful - now create meetup request
+      _createMeetupRequest(profileId, packageType, hotelId, dateTime);
+    });
+  }
+
+  void _createMeetupRequest(
+    String profileId,
+    PackageType packageType,
+    String hotelId,
+    DateTime dateTime,
+  ) {
+    // Create meetup request and automatically book cab for girl
     context.showSuccessSnackBar(
-      'Payment successful! Waiting for her response...',
+      '✅ Payment successful! Meetup request sent to ${_getCurrentProfile()?.name}.\n'
+      '🚗 Free cab will be booked for her automatically if she accepts.',
     );
     
-    // Navigate to payment screen or show confirmation
-    // This would typically trigger the PaidSwipeRight use case
+    // In real implementation:
+    // 1. Process payment via Razorpay
+    // 2. Create meetup in database
+    // 3. Send notification to girl
+    // 4. If girl accepts -> auto-book cab from her location to hotel
+    // 5. Send confirmation to both users
+  }
+
+  Profile? _getCurrentProfile() {
+    final state = context.read<DiscoveryBloc>().state;
+    if (state is DiscoveryLoaded && state.currentIndex < state.profiles.length) {
+      return state.profiles[state.currentIndex];
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Discover',
-          style: TextStyle(
-            fontSize: 24.sp,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: IOSGlassmorphismTheme.backgroundGradient,
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Glass App Bar
+              GlassContainer(
+                width: double.infinity,
+                height: 60.h,
+                margin: EdgeInsets.all(16.w),
+                borderRadius: 20,
+                blur: 20,
+                child: Row(
+                  children: [
+                    SizedBox(width: 20.w),
+                    Expanded(
+                      child: Text(
+                        'Discover',
+                        style: TextStyle(
+                          fontSize: 24.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        // Navigate to filters
+                      },
+                      icon: Icon(
+                        Icons.tune,
+                        color: Colors.white,
+                        size: 24.sp,
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: _buildContent(),
+              ),
+            ],
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Navigate to filters
-            },
-            icon: Icon(
-              Icons.tune,
-              color: AppColors.primary,
-              size: 24.sp,
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return BlocConsumer<DiscoveryBloc, DiscoveryState>(
+      listener: (context, state) {
+        if (state is MatchFound) {
+          _showMatchDialog(state.matchedProfile);
+        } else if (state is DiscoveryError) {
+          context.showErrorSnackBar(state.message);
+        }
+      },
+      builder: (context, state) {
+        if (state is DiscoveryLoading) {
+          return Center(
+            child: GlassContainer(
+              width: 100.w,
+              height: 100.w,
+              borderRadius: 20,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                ),
+              ),
             ),
-          ),
-        ],
-      ),
-      body: BlocConsumer<DiscoveryBloc, DiscoveryState>(
-        listener: (context, state) {
-          if (state is MatchFound) {
-            _showMatchDialog(state.matchedProfile);
-          } else if (state is DiscoveryError) {
-            context.showErrorSnackBar(state.message);
-          }
-        },
-        builder: (context, state) {
-          if (state is DiscoveryLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          } else if (state is DiscoveryLoaded) {
-            return _buildDiscoveryContent(state);
-          } else if (state is DiscoveryError) {
-            return _buildErrorContent(state.message);
-          }
-          
-          return const SizedBox.shrink();
-        },
-      ),
+          );
+        } else if (state is DiscoveryLoaded) {
+          return _buildDiscoveryContent(state);
+        } else if (state is DiscoveryError) {
+          return _buildErrorContent(state.message);
+        }
+        
+        return const SizedBox.shrink();
+      },
     );
   }
 
