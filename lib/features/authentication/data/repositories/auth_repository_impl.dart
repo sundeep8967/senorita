@@ -6,29 +6,25 @@ import '../../../../core/network/network_info.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_data_source.dart';
-import '../datasources/auth_remote_data_source.dart';
+import '../datasources/firebase_auth_data_source.dart';
 import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  final AuthRemoteDataSource remoteDataSource;
+  final FirebaseAuthDataSource firebaseAuthDataSource;
   final AuthLocalDataSource localDataSource;
   final NetworkInfo networkInfo;
-  final GoogleSignIn googleSignIn;
-  final FacebookAuth facebookAuth;
 
   AuthRepositoryImpl({
-    required this.remoteDataSource,
+    required this.firebaseAuthDataSource,
     required this.localDataSource,
     required this.networkInfo,
-    required this.googleSignIn,
-    required this.facebookAuth,
   });
 
   @override
   Future<Either<Failure, void>> sendPhoneOtp(String phoneNumber) async {
     if (await networkInfo.isConnected) {
       try {
-        await remoteDataSource.sendPhoneOtp(phoneNumber);
+        await firebaseAuthDataSource.sendPhoneOtp(phoneNumber);
         return const Right(null);
       } catch (e) {
         return Left(ServerFailure(e.toString()));
@@ -42,7 +38,9 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> verifyPhoneOtp(String phoneNumber, String otp) async {
     if (await networkInfo.isConnected) {
       try {
-        final userModel = await remoteDataSource.verifyPhoneOtp(phoneNumber, otp);
+        // Note: For Firebase phone auth, we need verification ID, not phone number
+        // This method signature might need to be updated to accept verificationId
+        final userModel = await firebaseAuthDataSource.verifyPhoneOtp(phoneNumber, otp);
         await localDataSource.cacheUser(userModel);
         return Right(userModel.toEntity());
       } catch (e) {
@@ -57,19 +55,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> loginWithGoogle() async {
     if (await networkInfo.isConnected) {
       try {
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-        if (googleUser == null) {
-          return const Left(AuthenticationFailure('Google sign in was cancelled'));
-        }
-
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final String? idToken = googleAuth.idToken;
-
-        if (idToken == null) {
-          return const Left(AuthenticationFailure('Failed to get Google ID token'));
-        }
-
-        final userModel = await remoteDataSource.loginWithGoogle(idToken);
+        final userModel = await firebaseAuthDataSource.signInWithGoogle();
         await localDataSource.cacheUser(userModel);
         return Right(userModel.toEntity());
       } catch (e) {
@@ -84,20 +70,9 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> loginWithFacebook() async {
     if (await networkInfo.isConnected) {
       try {
-        final LoginResult result = await facebookAuth.login();
-        
-        if (result.status == LoginStatus.success) {
-          final AccessToken? accessToken = result.accessToken;
-          if (accessToken == null) {
-            return const Left(AuthenticationFailure('Failed to get Facebook access token'));
-          }
-
-          final userModel = await remoteDataSource.loginWithFacebook(accessToken.token);
-          await localDataSource.cacheUser(userModel);
-          return Right(userModel.toEntity());
-        } else {
-          return Left(AuthenticationFailure('Facebook login failed: ${result.message}'));
-        }
+        final userModel = await firebaseAuthDataSource.signInWithFacebook();
+        await localDataSource.cacheUser(userModel);
+        return Right(userModel.toEntity());
       } catch (e) {
         return Left(AuthenticationFailure(e.toString()));
       }
@@ -111,9 +86,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await localDataSource.clearCachedUser();
       await localDataSource.clearAuthToken();
-      await googleSignIn.signOut();
-      await facebookAuth.logOut();
-      await remoteDataSource.logout();
+      await firebaseAuthDataSource.signOut();
       return const Right(null);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
@@ -123,8 +96,16 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User?>> getCurrentUser() async {
     try {
-      final userModel = await localDataSource.getCachedUser();
-      return Right(userModel?.toEntity());
+      // Try to get from Firebase first, then fallback to cache
+      final userModel = await firebaseAuthDataSource.getCurrentUser();
+      if (userModel != null) {
+        await localDataSource.cacheUser(userModel);
+        return Right(userModel.toEntity());
+      }
+      
+      // Fallback to cached user
+      final cachedUser = await localDataSource.getCachedUser();
+      return Right(cachedUser?.toEntity());
     } catch (e) {
       return Left(CacheFailure(e.toString()));
     }
@@ -143,8 +124,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Stream<User?> get authStateChanges {
-    // This would typically be implemented with Firebase Auth or similar
-    // For now, return an empty stream
-    return Stream.empty();
+    return firebaseAuthDataSource.authStateChanges.map((userModel) {
+      if (userModel != null) {
+        // Cache the user when auth state changes
+        localDataSource.cacheUser(userModel);
+        return userModel.toEntity();
+      }
+      return null;
+    });
   }
 }

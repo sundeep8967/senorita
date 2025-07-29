@@ -15,7 +15,7 @@ import '../network/network_info.dart';
 
 // Authentication
 import '../../features/authentication/data/datasources/auth_local_data_source.dart';
-import '../../features/authentication/data/datasources/auth_remote_data_source.dart';
+import '../../features/authentication/data/datasources/firebase_auth_data_source.dart';
 import '../../features/authentication/data/repositories/auth_repository_impl.dart';
 import '../../features/authentication/domain/repositories/auth_repository.dart';
 import '../../features/authentication/domain/usecases/get_current_user.dart';
@@ -47,17 +47,20 @@ Future<void> init() async {
   // Repository
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
-      remoteDataSource: sl(),
+      firebaseAuthDataSource: sl(),
       localDataSource: sl(),
       networkInfo: sl(),
-      googleSignIn: sl(),
-      facebookAuth: sl(),
     ),
   );
 
   // Data sources
-  sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(apiClient: sl()),
+  sl.registerLazySingleton<FirebaseAuthDataSource>(
+    () => FirebaseAuthDataSourceImpl(
+      firebaseAuth: sl(),
+      googleSignIn: sl(),
+      facebookAuth: sl(),
+      firestore: sl(),
+    ),
   );
 
   sl.registerLazySingleton<AuthLocalDataSource>(

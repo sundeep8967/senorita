@@ -88,13 +88,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LoginWithGoogleEvent event,
     Emitter<AuthState> emit,
   ) async {
+    print('LoginWithGoogleEvent received in AuthBloc');
     emit(AuthLoading());
     
     final result = await loginWithGoogle(NoParams());
     
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(AuthAuthenticated(user: user)),
+      (failure) {
+        print('Google login failed: ${failure.message}');
+        emit(AuthError(message: failure.message));
+      },
+      (user) {
+        print('Google login successful: ${user.email}');
+        emit(AuthAuthenticated(user: user));
+      },
     );
   }
 

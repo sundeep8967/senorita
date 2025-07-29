@@ -89,16 +89,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthError) {
-            context.showErrorSnackBar(state.message);
-          } else if (state is AuthAuthenticated) {
-            // Navigate to profile setup or home
-            Navigator.of(context).pushReplacementNamed('/profile-setup');
-          }
-        },
-        child: SafeArea(
+      body: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
             child: FadeTransition(
@@ -125,7 +116,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage>
             ),
           ),
         ),
-      ),
     );
   }
 

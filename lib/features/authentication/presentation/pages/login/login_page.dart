@@ -58,7 +58,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   void _handleGoogleLogin() {
+    print('Google login button pressed');
     context.read<AuthBloc>().add(LoginWithGoogleEvent());
+    print('LoginWithGoogleEvent dispatched');
   }
 
   void _handlePhoneLogin() {
@@ -74,33 +76,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthError) {
-            context.showErrorSnackBar(state.message);
-          } else if (state is OtpSent) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => OtpVerificationPage(
-                  phoneNumber: state.phoneNumber,
-                ),
-              ),
-            );
-          } else if (state is AuthAuthenticated) {
-            if (!state.user.isProfileComplete) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => ProfileSetupPage(
-                    phoneNumber: state.user.phoneNumber,
-                    userName: state.user.name,
-                    email: state.user.email,
-                  ),
-                ),
-              );
-            }
-          }
-        },
-        child: Container(
+      body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -139,7 +115,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
           ),
         ),
-      ),
     );
   }
 

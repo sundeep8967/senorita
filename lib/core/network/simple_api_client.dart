@@ -1,13 +1,30 @@
 import 'package:dio/dio.dart';
-import '../constants/app_constants.dart';
 
 class SimpleApiClient {
   final Dio _dio;
 
   SimpleApiClient(this._dio) {
-    _dio.options.baseUrl = AppConstants.baseUrl + AppConstants.apiVersion;
+    // Note: API endpoints are commented out since we're using Firebase
+    // _dio.options.baseUrl = 'https://your-api.com/v1';
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
+    
+    // Add error handling interceptor
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onError: (error, handler) {
+          print('API Error: ${error.message}');
+          if (error.type == DioExceptionType.connectionError) {
+            print('Connection Error Details: ${error.error}');
+          }
+          handler.next(error);
+        },
+        onRequest: (options, handler) {
+          print('Making request to: ${options.uri}');
+          handler.next(options);
+        },
+      ),
+    );
   }
 
   // Authentication endpoints

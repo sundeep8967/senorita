@@ -3,9 +3,9 @@ class AppConstants {
   static const String appName = 'Senorita';
   static const String appVersion = '1.0.0';
   
-  // API Endpoints
-  static const String baseUrl = 'https://api.senorita.com';
-  static const String apiVersion = '/v1';
+  // API Endpoints (Firebase-based, no external API needed)
+  // static const String baseUrl = 'https://api.senorita.com';
+  // static const String apiVersion = '/v1';
   
   // Payment
   static const int basicMeetupPrice = 500;
