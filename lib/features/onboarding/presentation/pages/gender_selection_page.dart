@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../../core/themes/colors.dart';
-import '../../../../core/utils/extensions.dart';
-import '../../../authentication/domain/entities/user.dart';
-import 'male_profile_setup_page.dart';
-import 'female_profile_setup_page.dart';
+import '../../../../core/themes/premium_theme.dart';
+import '../../../../core/navigation/app_router.dart';
 
 class GenderSelectionPage extends StatefulWidget {
   final String phoneNumber;
@@ -22,7 +19,7 @@ class GenderSelectionPage extends StatefulWidget {
 
 class _GenderSelectionPageState extends State<GenderSelectionPage>
     with TickerProviderStateMixin {
-  UserType? _selectedUserType;
+  String? _selectedGender;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;

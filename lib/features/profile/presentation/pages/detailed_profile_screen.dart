@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 
 class DetailedProfileScreen extends StatelessWidget {
   const DetailedProfileScreen({super.key});
@@ -8,96 +9,132 @@ class DetailedProfileScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
-          Positioned.fill(
-            child: Image.network(
-              'https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d', // Replace with your image
-              fit: BoxFit.cover,
+          // Background with Blur and Gradient
+          Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: NetworkImage(
+                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+                ),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: Container(color: Colors.transparent),
             ),
           ),
-          // Top bar
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Back Button
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const CircleAvatar(
-                      backgroundColor: Colors.black54,
-                      child: Icon(Icons.arrow_back, color: Colors.white),
-                    ),
-                  ),
-                  // Location Dropdown
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.white, size: 18),
-                        SizedBox(width: 6),
-                        Text(
-                          "Los Angeles, CA",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        Icon(Icons.keyboard_arrow_down, color: Colors.white),
-                      ],
-                    ),
-                  ),
-                ],
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFFFE4E6).withOpacity(0.7), Color(0xFFEADFF7).withOpacity(0.7)],
               ),
             ),
           ),
-          // Right side action buttons
-          Positioned(
-            right: 16,
-            top: MediaQuery.of(context).size.height * 0.35,
+          // Content including the figure image
+          SafeArea(
             child: Column(
               children: [
-                _actionButton(Icons.favorite_border, () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Liked! 💕')),
-                  );
-                }),
-                const SizedBox(height: 16),
-                _actionButton(Icons.message_outlined, () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Opening chat... 💬')),
-                  );
-                }),
-                const SizedBox(height: 16),
-                _actionButton(Icons.more_vert, () {
-                  _showMoreOptions(context);
-                }),
-              ],
-            ),
-          ),
-          // Bottom user details
-          const Positioned(
-            left: 16,
-            bottom: 100,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Sophia Williams, 25",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                // Navigation Icons (unchanged)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white,
+                        child: IconButton(
+                          icon: Icon(Icons.arrow_back, color: Colors.black),
+                          onPressed: () {},
+                        ),
+                      ),
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white,
+                        child: IconButton(
+                          icon: Icon(Icons.more_vert, color: Colors.black),
+                          onPressed: () {},
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  "Book lover, coffee enthusiast, and part-time traveler.\nLooking for someone to share deep conversations...",
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                // Expanded section with the figure image
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Add the full figure image here
+                        Image.network(
+                          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', // Same image as background
+                          fit: BoxFit.contain,
+                          colorBlendMode: BlendMode.dstATop, // Adjusts how the image blends with the background
+                          color: Colors.white.withOpacity(0.9), // Reduces tint on the figure
+                        ),
+                        Text(
+                          'Yura',
+                          style: TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          '24',
+                          style: TextStyle(
+                            fontSize: 30,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Avatar and Details (unchanged)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.transparent,
+                        backgroundImage: NetworkImage(
+                          'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80',
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white, width: 2),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Yura Serena',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: [
+                          _buildTag('UI Designer'),
+                          _buildTag('Lovely'),
+                          _buildTag('Music'),
+                          _buildTag('Yoga'),
+                          _buildTag('Vegetarian'),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

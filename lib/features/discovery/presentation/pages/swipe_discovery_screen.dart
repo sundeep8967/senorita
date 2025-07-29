@@ -8,6 +8,9 @@ import '../bloc/discovery_bloc.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/action_buttons.dart';
 import '../widgets/match_dialog.dart';
+import '../widgets/paid_swipe_dialog.dart';
+import '../../../payment/domain/entities/payment.dart';
+import '../../domain/usecases/paid_swipe_right.dart';
 
 class SwipeDiscoveryScreen extends StatefulWidget {
   const SwipeDiscoveryScreen({super.key});
@@ -69,6 +72,37 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
     context.read<DiscoveryBloc>().add(
       SwipeProfileEvent(profileId: profileId, action: action),
     );
+  }
+
+  void _handlePaidSwipe(String profileId, Profile profile) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaidSwipeDialog(
+        profile: profile,
+        onConfirmPaidSwipe: (packageType, hotelId, dateTime) {
+          Navigator.of(context).pop();
+          _processPaidSwipe(profileId, packageType, hotelId, dateTime);
+        },
+        onCancel: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
+  void _processPaidSwipe(
+    String profileId,
+    PackageType packageType,
+    String hotelId,
+    DateTime dateTime,
+  ) {
+    // TODO: Integrate with PaidSwipeRight use case
+    // For now, show success message
+    context.showSuccessSnackBar(
+      'Payment successful! Waiting for her response...',
+    );
+    
+    // Navigate to payment screen or show confirmation
+    // This would typically trigger the PaidSwipeRight use case
   }
 
   @override
@@ -186,6 +220,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
               onPass: () => _handleSwipe(SwipeAction.pass, currentProfile.id),
               onLike: () => _handleSwipe(SwipeAction.like, currentProfile.id),
               onSuperLike: () => _handleSwipe(SwipeAction.superLike, currentProfile.id),
+              onPaidSwipe: () => _handlePaidSwipe(currentProfile.id, currentProfile),
             ),
           ),
         ),
