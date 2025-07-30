@@ -23,7 +23,7 @@ class DiscoveryRepositoryImpl implements DiscoveryRepository {
           .collection('profiles')
           .where('isActive', isEqualTo: true)
           .limit(limit)
-          .offset(page * limit)
+          .skip(page * limit)
           .get();
 
       final profiles = querySnapshot.docs.map((doc) {

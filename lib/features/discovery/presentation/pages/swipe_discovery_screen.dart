@@ -5,6 +5,8 @@ import 'dart:ui';
 import '../../../../core/themes/ios_glassmorphism_theme.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widgets/glassmorphism_widgets.dart';
+import '../../../../core/utils/extensions.dart';
+import '../../../../core/themes/colors.dart';
 import '../../domain/entities/profile.dart';
 import '../bloc/discovery_bloc.dart';
 import '../widgets/profile_card.dart';
@@ -98,7 +100,12 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
     DateTime dateTime,
   ) {
     // Show payment processing
-    context.showInfoSnackBar('Processing payment...');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Processing payment...'),
+        backgroundColor: Colors.blue,
+      ),
+    );
     
     // Simulate payment flow - in real app, integrate with Razorpay
     Future.delayed(const Duration(seconds: 2), () {
@@ -114,9 +121,14 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
     DateTime dateTime,
   ) {
     // Create meetup request and automatically book cab for girl
-    context.showSuccessSnackBar(
-      '✅ Payment successful! Meetup request sent to ${_getCurrentProfile()?.name}.\n'
-      '🚗 Free cab will be booked for her automatically if she accepts.',
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '✅ Payment successful! Meetup request sent to ${_getCurrentProfile()?.name}.\n'
+          '🚗 Free cab will be booked for her automatically if she accepts.',
+        ),
+        backgroundColor: Colors.green,
+      ),
     );
     
     // In real implementation:
@@ -146,12 +158,18 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
           child: Column(
             children: [
               // Glass App Bar
-              GlassContainer(
+              Container(
                 width: double.infinity,
                 height: 60.h,
                 margin: EdgeInsets.all(16.w),
-                borderRadius: 20,
-                blur: 20,
+                decoration: BoxDecoration(
+                  gradient: IOSGlassmorphismTheme.cardGradient,
+                  borderRadius: BorderRadius.circular(20.r),
+                  border: Border.all(
+                    color: IOSGlassmorphismTheme.glassBorder,
+                    width: 1.5,
+                  ),
+                ),
                 child: Row(
                   children: [
                     SizedBox(width: 20.w),
@@ -197,16 +215,28 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
         if (state is MatchFound) {
           _showMatchDialog(state.matchedProfile);
         } else if (state is DiscoveryError) {
-          context.showErrorSnackBar(state.message);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       },
       builder: (context, state) {
         if (state is DiscoveryLoading) {
           return Center(
-            child: GlassContainer(
+            child: Container(
               width: 100.w,
               height: 100.w,
-              borderRadius: 20,
+              decoration: BoxDecoration(
+                gradient: IOSGlassmorphismTheme.cardGradient,
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(
+                  color: IOSGlassmorphismTheme.glassBorder,
+                  width: 1.5,
+                ),
+              ),
               child: const Center(
                 child: CircularProgressIndicator(
                   color: Colors.white,
@@ -303,7 +333,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
           Icon(
             Icons.search_off,
             size: 64.sp,
-            color: AppColors.textSecondary,
+            color: Colors.white.withValues(alpha: 0.6),
           ),
           SizedBox(height: 16.h),
           Text(
@@ -311,7 +341,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
             style: TextStyle(
               fontSize: 18.sp,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: Colors.white,
             ),
           ),
           SizedBox(height: 8.h),
@@ -319,7 +349,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
             'Try adjusting your preferences',
             style: TextStyle(
               fontSize: 14.sp,
-              color: AppColors.textSecondary,
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -335,7 +365,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
           Icon(
             Icons.favorite_outline,
             size: 64.sp,
-            color: AppColors.primary,
+            color: IOSGlassmorphismTheme.iosPink,
           ),
           SizedBox(height: 16.h),
           Text(
@@ -343,7 +373,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
             style: TextStyle(
               fontSize: 18.sp,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: Colors.white,
             ),
           ),
           SizedBox(height: 8.h),
@@ -351,7 +381,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
             'Check back later for new profiles',
             style: TextStyle(
               fontSize: 14.sp,
-              color: AppColors.textSecondary,
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
           SizedBox(height: 24.h),
@@ -374,7 +404,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
           Icon(
             Icons.error_outline,
             size: 64.sp,
-            color: AppColors.error,
+            color: Colors.red,
           ),
           SizedBox(height: 16.h),
           Text(
@@ -382,7 +412,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
             style: TextStyle(
               fontSize: 18.sp,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: Colors.white,
             ),
           ),
           SizedBox(height: 8.h),
@@ -390,7 +420,7 @@ class _SwipeDiscoveryScreenState extends State<SwipeDiscoveryScreen>
             message,
             style: TextStyle(
               fontSize: 14.sp,
-              color: AppColors.textSecondary,
+              color: Colors.white.withValues(alpha: 0.8),
             ),
             textAlign: TextAlign.center,
           ),

@@ -50,10 +50,10 @@ class GlassmorphismTheme {
     double borderWidth = 1,
   }) {
     return BoxDecoration(
-      color: backgroundColor ?? transparentWhite,
+      color: backgroundColor ?? glassBackground,
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: borderColor ?? borderGlass,
+        color: borderColor ?? glassBorder,
         width: borderWidth,
       ),
     );
@@ -65,10 +65,10 @@ class GlassmorphismTheme {
     bool isDark = false,
   }) {
     return BoxDecoration(
-      color: isDark ? transparentBlack : transparentWhite,
+      color: isDark ? const Color(0x40000000) : glassBackground,
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: isDark ? Color(0x33FFFFFF) : Color(0x1AFFFFFF),
+        color: isDark ? const Color(0x33FFFFFF) : const Color(0x1AFFFFFF),
         width: 1,
       ),
     );
@@ -80,10 +80,10 @@ class GlassmorphismTheme {
     bool isPressed = false,
   }) {
     return BoxDecoration(
-      color: isPressed ? Color(0x33FFFFFF) : transparentWhite,
+      color: isPressed ? const Color(0x33FFFFFF) : glassBackground,
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: borderGlass,
+        color: glassBorder,
         width: 1,
       ),
     );
@@ -94,7 +94,7 @@ class GlassmorphismTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: primaryBlack,
+      scaffoldBackgroundColor: const Color(0xFF0F0C29),
       primaryColor: Colors.white,
       colorScheme: const ColorScheme.dark(
         primary: Colors.white,
@@ -118,12 +118,12 @@ class GlassmorphismTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: transparentWhite,
+          backgroundColor: glassBackground,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(25),
-            side: const BorderSide(color: borderGlass),
+            side: BorderSide(color: glassBorder),
           ),
         ),
       ),

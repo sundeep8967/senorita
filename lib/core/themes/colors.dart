@@ -48,6 +48,12 @@ class AppColors {
   static const Color glassBlack = Color(0x40000000);
   static const Color glassBorder = Color(0x33FFFFFF);
   
+  // Additional missing colors
+  static const Color transparentWhite = Color(0x1AFFFFFF);
+  static const Color transparentBlack = Color(0x40000000);
+  static const Color borderGlass = Color(0x33FFFFFF);
+  static const Color primaryBlack = Color(0xFF000000);
+  
   // Glassmorphism Gradient Colors
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [Color(0x33FFFFFF), Color(0x1AFFFFFF)],

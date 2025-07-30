@@ -20,6 +20,7 @@ class GenderSelectionPage extends StatefulWidget {
 class _GenderSelectionPageState extends State<GenderSelectionPage>
     with TickerProviderStateMixin {
   String? _selectedGender;
+  UserType? _selectedUserType;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;

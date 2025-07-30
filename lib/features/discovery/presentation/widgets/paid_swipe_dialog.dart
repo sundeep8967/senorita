@@ -102,13 +102,19 @@ class _PaidSwipeDialogState extends State<PaidSwipeDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: IOSGlassmorphismTheme.glassBlur(
-        borderRadius: 24,
-        child: Container(
-          constraints: BoxConstraints(maxHeight: 0.8.sh),
-          decoration: IOSGlassmorphismTheme.glassContainer(
-            borderRadius: 24,
-          ),
+      child: Container(
+        constraints: BoxConstraints(maxHeight: 0.8.sh),
+        decoration: BoxDecoration(
+          gradient: IOSGlassmorphismTheme.primaryGradient,
+          borderRadius: BorderRadius.circular(24.r),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -307,7 +313,7 @@ class _PaidSwipeDialogState extends State<PaidSwipeDialog> {
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.bold,
-                    color: PremiumTheme.accentOrange,
+                    color: IOSGlassmorphismTheme.iosOrange,
                   ),
                 ),
               ],
@@ -560,7 +566,7 @@ class _PaidSwipeDialogState extends State<PaidSwipeDialog> {
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: PremiumTheme.primaryPink,
+                foregroundColor: IOSGlassmorphismTheme.iosPink,
                 padding: EdgeInsets.symmetric(vertical: 16.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),

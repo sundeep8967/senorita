@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
 import '../../../../core/themes/ios_glassmorphism_theme.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/widgets/glassmorphism_widgets.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -126,99 +127,100 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     ),
                   ),
-                  
-                  SizedBox(height: 40.h),
-                  
-                  // Welcome Content
-                  SlideTransition(
-                    position: _slideAnimation,
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Column(
-                        children: [
-                          Text(
-                            'Find Your Perfect\nMatch',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 32.sp,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              height: 1.2,
-                              letterSpacing: -1.0,
-                            ),
+                ),
+                
+                SizedBox(height: 40.h),
+                
+                // Welcome Content
+                SlideTransition(
+                  position: _slideAnimation,
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Column(
+                      children: [
+                        Text(
+                          'Find Your Perfect\nMatch',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 32.sp,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.2,
+                            letterSpacing: -1.0,
                           ),
-                          
-                          SizedBox(height: 16.h),
-                          
-                          Text(
-                            'Connect with like-minded people and discover meaningful relationships in a premium dating experience.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              color: Colors.white.withValues(alpha: 0.8),
-                              height: 1.5,
-                              letterSpacing: -0.2,
-                            ),
+                        ),
+                        
+                        SizedBox(height: 16.h),
+                        
+                        Text(
+                          'Connect with like-minded people and discover meaningful relationships in a premium dating experience.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            height: 1.5,
+                            letterSpacing: -0.2,
                           ),
-                          
-                          SizedBox(height: 40.h),
-                          
-                          // Get Started Button
-                          Container(
-                            width: double.infinity,
-                            height: 56.h,
-                            decoration: BoxDecoration(
-                              gradient: IOSGlassmorphismTheme.primaryGradient,
+                        ),
+                        
+                        SizedBox(height: 40.h),
+                        
+                        // Get Started Button
+                        Container(
+                          width: double.infinity,
+                          height: 56.h,
+                          decoration: BoxDecoration(
+                            gradient: IOSGlassmorphismTheme.primaryGradient,
+                            borderRadius: BorderRadius.circular(20.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: IOSGlassmorphismTheme.iosPink.withValues(alpha: 0.4),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(20.r),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: IOSGlassmorphismTheme.iosPink.withValues(alpha: 0.4),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(20.r),
-                                onTap: () {
-                                  Navigator.pushNamed(context, AppRouter.login);
-                                },
-                                child: Center(
-                                  child: Text(
-                                    'Get Started',
-                                    style: TextStyle(
-                                      fontSize: 18.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                      letterSpacing: -0.2,
-                                    ),
+                              onTap: () {
+                                Navigator.pushNamed(context, AppRouter.login);
+                              },
+                              child: Center(
+                                child: Text(
+                                  'Get Started',
+                                  style: TextStyle(
+                                    fontSize: 18.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                          
-                          SizedBox(height: 16.h),
-                          
-                          // Terms and Privacy
-                          Text(
-                            'By continuing, you agree to our Terms of Service\nand Privacy Policy',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              color: Colors.white.withValues(alpha: 0.6),
-                              height: 1.4,
-                              letterSpacing: -0.1,
-                            ),
+                        ),
+                        
+                        SizedBox(height: 16.h),
+                        
+                        // Terms and Privacy
+                        Text(
+                          'By continuing, you agree to our Terms of Service\nand Privacy Policy',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.white.withValues(alpha: 0.6),
+                            height: 1.4,
+                            letterSpacing: -0.1,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                  
-                  SizedBox(height: 40.h),
+                ),
+                
+                SizedBox(height: 40.h),
                 ],
               ),
             ),
