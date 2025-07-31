@@ -1,6 +1,6 @@
 
 import 'package:flutter/cupertino.dart';
-import 'package:senorita/features/home/presentation/pages/raya_home_screen.dart';
+import 'package:senorita/features/authentication/presentation/pages/phone_verification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
@@ -53,7 +53,7 @@ class LoginScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      CupertinoPageRoute(builder: (context) => const RayaHomeScreen()),
+                      CupertinoPageRoute(builder: (context) => const PhoneVerificationScreen()),
                     );
                   },
                 ),
