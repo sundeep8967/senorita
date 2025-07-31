@@ -1,20 +1,17 @@
 
-import 'package:senorita/features/home/presentation/pages/home_screen.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:senorita/features/home/presentation/pages/raya_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
-import 'package:senorita/features/authentication/helper/google_auth.dart';
-
-import 'package:senorita/features/authentication/helper/google_auth.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
+    return CupertinoPageScaffold(
+      child: Stack(
         children: [
           // Background Image
           Container(
@@ -52,11 +49,11 @@ class LoginScreen extends StatelessWidget {
                 // Social Login Buttons
                 _buildSocialLoginButton(
                   text: 'Continue with Google',
-                  icon: Icons.g_translate,
+                  icon: CupertinoIcons.globe,
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const RayaHomeScreen()),
+                      CupertinoPageRoute(builder: (context) => const RayaHomeScreen()),
                     );
                   },
                 ),
@@ -90,23 +87,23 @@ class LoginScreen extends StatelessWidget {
   }) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 40.w),
-      child: ElevatedButton.icon(
+      child: CupertinoButton(
         onPressed: onPressed,
-        icon: Icon(icon, color: Colors.white),
-        label: Text(
-          text,
-          style: TextStyle(
-            fontSize: 16.sp,
-            color: Colors.white,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withOpacity(0.2),
-          minimumSize: Size(double.infinity, 50.h),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30.r),
-            side: BorderSide(color: Colors.white.withOpacity(0.5)),
-          ),
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(30.r),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white),
+            SizedBox(width: 10.w),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 16.sp,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
       ),
     );

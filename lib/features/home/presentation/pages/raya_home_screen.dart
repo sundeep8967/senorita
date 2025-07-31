@@ -1,4 +1,5 @@
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui'; // Required for ImageFilter
@@ -8,8 +9,8 @@ class RayaHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
+    return CupertinoPageScaffold(
+      child: Stack(
         children: [
           // Background Image (Profile Photo)
           Container(
@@ -48,7 +49,7 @@ class RayaHomeScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildGlassmorphicIconButton(
-                        icon: Icons.person,
+                        icon: CupertinoIcons.person,
                         onPressed: () {
                           // TODO: Navigate to profile
                         },
@@ -63,7 +64,7 @@ class RayaHomeScreen extends StatelessWidget {
                         ),
                       ),
                       _buildGlassmorphicIconButton(
-                        icon: Icons.message,
+                        icon: CupertinoIcons.chat_bubble,
                         onPressed: () {
                           // TODO: Navigate to messages
                         },
@@ -126,13 +127,13 @@ class RayaHomeScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildGlassmorphicActionButton(
-                        icon: Icons.close,
+                        icon: CupertinoIcons.clear_thick,
                         color: Colors.redAccent,
                         onPressed: () {},
                         size: 60.sp,
                       ),
                       _buildGlassmorphicActionButton(
-                        icon: Icons.favorite,
+                        icon: CupertinoIcons.heart_fill,
                         color: Colors.greenAccent,
                         onPressed: () {},
                         size: 60.sp,
@@ -163,9 +164,10 @@ class RayaHomeScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(15.r),
             border: Border.all(color: Colors.white.withOpacity(0.2)),
           ),
-          child: IconButton(
-            icon: Icon(icon, color: Colors.white, size: 24.sp),
+          child: CupertinoButton(
+            padding: EdgeInsets.zero,
             onPressed: onPressed,
+            child: Icon(icon, color: Colors.white, size: 24.sp),
           ),
         ),
       ),
@@ -190,9 +192,10 @@ class RayaHomeScreen extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white.withOpacity(0.2)),
           ),
-          child: IconButton(
-            icon: Icon(icon, color: color, size: size * 0.5),
+          child: CupertinoButton(
+            padding: EdgeInsets.zero,
             onPressed: onPressed,
+            child: Icon(icon, color: color, size: size * 0.5),
           ),
         ),
       ),

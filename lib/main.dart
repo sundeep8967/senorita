@@ -1,5 +1,6 @@
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:senorita/features/authentication/presentation/pages/login_screen.dart';
@@ -20,13 +21,13 @@ class MyApp extends StatelessWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context , child) {
-        return MaterialApp(
+        return const CupertinoApp(
           title: 'Senorita',
-          theme: ThemeData(
-            primarySwatch: Colors.pink,
+          theme: CupertinoThemeData(
+            primaryColor: Colors.pink,
             brightness: Brightness.dark,
           ),
-          home: const LoginScreen(),
+          home: LoginScreen(),
         );
       },
     );
