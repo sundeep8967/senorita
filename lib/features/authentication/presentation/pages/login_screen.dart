@@ -60,14 +60,7 @@ class LoginScreen extends StatelessWidget {
                     );
                   },
                 ),
-                SizedBox(height: 20.h),
-                _buildSocialLoginButton(
-                  text: 'Continue with Facebook',
-                  icon: Icons.facebook,
-                  onPressed: () {
-                    // TODO: Implement Facebook Sign In
-                  },
-                ),
+                
                 const Spacer(flex: 3),
                 // Terms and Conditions
                 Padding(

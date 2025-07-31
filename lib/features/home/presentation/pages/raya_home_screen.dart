@@ -1,5 +1,7 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'dart:ui'; // Required for ImageFilter
 
 class RayaHomeScreen extends StatelessWidget {
   const RayaHomeScreen({super.key});
@@ -9,7 +11,7 @@ class RayaHomeScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
+          // Background Image (Profile Photo)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -19,13 +21,19 @@ class RayaHomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          // Gradient Overlay
+          // Gradient Overlay for text readability
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+                colors: [
+                  Colors.black.withOpacity(0.8),
+                  Colors.transparent,
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.8),
+                ],
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
+                stops: const [0.0, 0.3, 0.7, 1.0],
               ),
             ),
           ),
@@ -35,26 +43,27 @@ class RayaHomeScreen extends StatelessWidget {
               children: [
                 // Top Bar
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.person, color: Colors.white),
+                      _buildGlassmorphicIconButton(
+                        icon: Icons.person,
                         onPressed: () {
                           // TODO: Navigate to profile
                         },
                       ),
-                      const Text(
+                      Text(
                         'senorita',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
+                          fontSize: 28.sp,
                           fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.message, color: Colors.white),
+                      _buildGlassmorphicIconButton(
+                        icon: Icons.message,
                         onPressed: () {
                           // TODO: Navigate to messages
                         },
@@ -63,51 +72,75 @@ class RayaHomeScreen extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                // User Info
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Jessica, 24',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
+                // User Info (Glassmorphic Card)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20.r),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    child: Container(
+                      padding: EdgeInsets.all(24.w),
+                      margin: EdgeInsets.symmetric(horizontal: 24.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(color: Colors.white.withOpacity(0.2)),
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Fashion Designer',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Jessica, 24',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 36.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Fashion Designer | Loves hiking and art',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16.sp,
+                            ),
+                          ),
+                          SizedBox(height: 16.h),
+                          Text(
+                            '"Passionate about sustainable fashion and exploring new trails. Looking for someone who shares my love for creativity and adventure."',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 14.sp,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: 40.h),
                 // Action Buttons
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                  padding: EdgeInsets.symmetric(horizontal: 32.w),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildActionButton(
+                      _buildGlassmorphicActionButton(
                         icon: Icons.close,
-                        color: Colors.red,
+                        color: Colors.redAccent,
                         onPressed: () {},
+                        size: 60.sp,
                       ),
-                      _buildActionButton(
+                      _buildGlassmorphicActionButton(
                         icon: Icons.favorite,
-                        color: Colors.green,
+                        color: Colors.greenAccent,
                         onPressed: () {},
+                        size: 60.sp,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: 32.h),
               ],
             ),
           ),
@@ -116,28 +149,51 @@ class RayaHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildGlassmorphicIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(15.r),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(15.r),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+          ),
+          child: IconButton(
+            icon: Icon(icon, color: Colors.white, size: 24.sp),
+            onPressed: onPressed,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassmorphicActionButton({
     required IconData icon,
     required Color color,
     required VoidCallback onPressed,
+    required double size,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 10,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size / 2), // Circular for buttons
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
           ),
-        ],
-      ),
-      child: CircleAvatar(
-        radius: 30,
-        backgroundColor: Colors.white,
-        child: IconButton(
-          icon: Icon(icon, color: color, size: 30),
-          onPressed: onPressed,
+          child: IconButton(
+            icon: Icon(icon, color: color, size: size * 0.5),
+            onPressed: onPressed,
+          ),
         ),
       ),
     );

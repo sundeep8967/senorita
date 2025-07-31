@@ -56,7 +56,7 @@ dependencies:
   
   # Social Login
   google_sign_in: ^6.1.6
-  flutter_facebook_auth: ^6.0.3
+  
   
   # OTP Input
   pin_code_fields: ^8.0.1
