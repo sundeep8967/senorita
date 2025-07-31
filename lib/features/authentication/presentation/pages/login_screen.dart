@@ -1,7 +1,12 @@
 
+import 'package:senorita/features/home/presentation/pages/home_screen.dart';
+import 'package:senorita/features/home/presentation/pages/raya_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
+import 'package:senorita/features/authentication/helper/google_auth.dart';
+
+import 'package:senorita/features/authentication/helper/google_auth.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -49,7 +54,10 @@ class LoginScreen extends StatelessWidget {
                   text: 'Continue with Google',
                   icon: Icons.g_translate,
                   onPressed: () {
-                    // TODO: Implement Google Sign In
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RayaHomeScreen()),
+                    );
                   },
                 ),
                 SizedBox(height: 20.h),
