@@ -3,6 +3,7 @@ import 'name_step_screen.dart';
 import 'age_step_screen.dart';
 import 'profession_step_screen.dart';
 import 'location_step_screen.dart';
+import 'google_signin_step_screen.dart';
 
 class SenoritaApplicationScreen extends StatefulWidget {
   const SenoritaApplicationScreen({Key? key}) : super(key: key);
@@ -40,7 +41,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
   }
 
   void _nextStep() {
-    if (_currentStep < 3) {
+    if (_currentStep < 4) {
       setState(() {
         _currentStep++;
       });
@@ -204,7 +205,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
           onPressed: _previousStep,
         ),
         actions: [
-          if (_currentStep < 3)
+          if (_currentStep > 0 && _currentStep < 4)
             TextButton(
               onPressed: _nextStep,
               child: const Text(
@@ -223,10 +224,10 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Row(
-              children: List.generate(4, (index) {
+              children: List.generate(5, (index) {
                 return Expanded(
                   child: Container(
-                    margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                    margin: EdgeInsets.only(right: index < 4 ? 8 : 0),
                     height: 4,
                     decoration: BoxDecoration(
                       color: index <= _currentStep 
@@ -246,6 +247,9 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
+                GoogleSignInStepScreen(
+                  onNext: _nextStep,
+                ),
                 NameStepScreen(
                   controller: _nameController,
                   onNext: _nextStep,
