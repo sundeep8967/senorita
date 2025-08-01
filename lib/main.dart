@@ -476,292 +476,653 @@ class SenoritaApplicationScreen extends StatefulWidget {
 }
 
 class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
-  final _formKey = GlobalKey<FormState>();
+  int _currentStep = 0;
+  final PageController _pageController = PageController();
+  
+  // Controllers for each step
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController();
-  String? _selectedCategory;
-  bool _isSubmitting = false;
-
-  final List<String> _categories = [
-    'Music',
-    'Art',
-    'Film',
-    'Tech',
-    'Fashion',
-    'Business',
-    'Sports',
-    'Other'
-  ];
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _professionController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  
+  // Data storage
+  String fullName = '';
+  String age = '';
+  String profession = '';
+  String location = '';
+  double? latitude;
+  double? longitude;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
-    _bioController.dispose();
+    _ageController.dispose();
+    _professionController.dispose();
+    _locationController.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  void _nextStep() {
+    if (_currentStep < 3) {
+      setState(() {
+        _currentStep++;
+      });
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      _completeApplication();
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  void _completeApplication() {
+    // Store the data
+    fullName = _nameController.text;
+    age = _ageController.text;
+    profession = _professionController.text;
+    location = _locationController.text;
+    
+    _joinSenoritaWithGoogle();
+  }
+
+  void _joinSenoritaWithGoogle() async {
+    // Show loading state
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFF007AFF)),
+            const SizedBox(height: 16),
+            const Text(
+              'Joining Senorita with Google...',
+              style: TextStyle(
+                color: Color(0xFF1C1C1E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Simulate Google sign-in and registration process
+    await Future.delayed(const Duration(seconds: 3));
+
+    // Close loading dialog
+    Navigator.pop(context);
+
+    // Show success dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          'Welcome to Senorita!',
+          style: TextStyle(
+            color: Color(0xFF1C1C1E),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Welcome $fullName! You\'re all set. We can now book cabs to your location when needed.',
+          style: const TextStyle(
+            color: Color(0xFF8E8E93),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to welcome screen
+            },
+            child: const Text(
+              'Start Exploring',
+              style: TextStyle(color: Color(0xFF007AFF)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFFF2F2F7), // iOS light background
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF007AFF), size: 20),
+          onPressed: _previousStep,
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Apply to Senorita',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: 60,
-                height: 2,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.pinkAccent, Colors.purpleAccent],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
-              
-              // Name Field
-              TextFormField(
-                controller: _nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: _buildInputDecoration('Full Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              
-              // Email Field
-              TextFormField(
-                controller: _emailController,
-                style: const TextStyle(color: Colors.white),
-                decoration: _buildInputDecoration('Email Address'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              
-              // Category Dropdown
-              DropdownButtonFormField<String>(
-                dropdownColor: Colors.grey[900],
-                style: const TextStyle(color: Colors.white),
-                decoration: _buildInputDecoration('Primary Category'),
-                value: _selectedCategory,
-                items: _categories.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedCategory = newValue;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select a category';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              
-              // Bio Field
-              TextFormField(
-                controller: _bioController,
-                style: const TextStyle(color: Colors.white),
-                maxLines: 4,
-                decoration: _buildInputDecoration('Tell us about yourself'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please tell us about yourself';
-                  }
-                  if (value.length < 50) {
-                    return 'Please write at least 50 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 40),
-              
-              // Continue with Google Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    _continueWithGoogle();
-                  },
-                  icon: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'G',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  label: const Text(
-                    'Continue with Google',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitApplication,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isSubmitting
-                      ? const CircularProgressIndicator(color: Colors.black)
-                      : const Text(
-                          'Submit Application',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Note
-              Text(
-                'We review each application carefully. You\'ll hear back from us within 2-3 weeks.',
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _buildInputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: TextStyle(color: Colors.grey[500]),
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey[700]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.purpleAccent),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.red),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.red),
-        borderRadius: BorderRadius.circular(8),
-      ),
-    );
-  }
-
-  void _submitApplication() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isSubmitting = true);
-      
-      // Simulate network request
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Show confirmation dialog
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text(
-            'Application Submitted',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Text(
-            'Thank you for applying to Senorita. We\'ll review your application and notify you soon.',
-            style: TextStyle(color: Colors.grey[300]),
-          ),
-          actions: [
+        actions: [
+          if (_currentStep < 3)
             TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Go back to welcome screen
-              },
-              child: const Text('OK'),
+              onPressed: _nextStep,
+              child: const Text(
+                'Skip',
+                style: TextStyle(
+                  color: Color(0xFF8E8E93),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Progress indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Row(
+              children: List.generate(4, (index) {
+                return Expanded(
+                  child: Container(
+                    margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: index <= _currentStep 
+                          ? const Color(0xFF007AFF) 
+                          : const Color(0xFFE5E5EA),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          
+          // Page content
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildNameStep(),
+                _buildAgeStep(),
+                _buildProfessionStep(),
+                _buildLocationStep(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameStep() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 40),
+          const Text(
+            'What\'s your name?',
+            style: TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'This is how you\'ll appear to other members',
+            style: TextStyle(
+              color: Color(0xFF8E8E93),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 60),
+          
+          TextField(
+            controller: _nameController,
+            style: const TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Enter your full name',
+              hintStyle: const TextStyle(
+                color: Color(0xFFC7C7CC),
+                fontSize: 18,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+            ),
+            textCapitalization: TextCapitalization.words,
+            onChanged: (value) {
+              setState(() {});
+            },
+          ),
+          
+          const Spacer(),
+          
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _nameController.text.trim().isNotEmpty ? _nextStep : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                elevation: 0,
+                disabledBackgroundColor: const Color(0xFFE5E5EA),
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAgeStep() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 40),
+          const Text(
+            'How old are you?',
+            style: TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'You must be 18 or older to join Senorita',
+            style: TextStyle(
+              color: Color(0xFF8E8E93),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 60),
+          
+          TextField(
+            controller: _ageController,
+            style: const TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Enter your age',
+              hintStyle: const TextStyle(
+                color: Color(0xFFC7C7CC),
+                fontSize: 18,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+            ),
+            keyboardType: TextInputType.number,
+            onChanged: (value) {
+              setState(() {});
+            },
+          ),
+          
+          const Spacer(),
+          
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _ageController.text.trim().isNotEmpty && 
+                         int.tryParse(_ageController.text) != null &&
+                         int.parse(_ageController.text) >= 18 ? _nextStep : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                elevation: 0,
+                disabledBackgroundColor: const Color(0xFFE5E5EA),
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfessionStep() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 40),
+          const Text(
+            'What do you do?',
+            style: TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Tell us about your profession or passion',
+            style: TextStyle(
+              color: Color(0xFF8E8E93),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 60),
+          
+          TextField(
+            controller: _professionController,
+            style: const TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: 'e.g. Designer, Artist, Engineer',
+              hintStyle: const TextStyle(
+                color: Color(0xFFC7C7CC),
+                fontSize: 18,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+            ),
+            textCapitalization: TextCapitalization.words,
+            onChanged: (value) {
+              setState(() {});
+            },
+          ),
+          
+          const Spacer(),
+          
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _professionController.text.trim().isNotEmpty ? _nextStep : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                elevation: 0,
+                disabledBackgroundColor: const Color(0xFFE5E5EA),
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationStep() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 40),
+          const Text(
+            'Where are you located?',
+            style: TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'We need this to book cabs to your location when needed',
+            style: TextStyle(
+              color: Color(0xFF8E8E93),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 60),
+          
+          TextField(
+            controller: _locationController,
+            style: const TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Enter your city or address',
+              hintStyle: const TextStyle(
+                color: Color(0xFFC7C7CC),
+                fontSize: 18,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+              suffixIcon: IconButton(
+                icon: const Icon(
+                  Icons.my_location,
+                  color: Color(0xFF007AFF),
+                ),
+                onPressed: _getCurrentLocation,
+              ),
+            ),
+            textCapitalization: TextCapitalization.words,
+            onChanged: (value) {
+              setState(() {});
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Use Current Location Button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: _getCurrentLocation,
+              icon: const Icon(
+                Icons.location_on,
+                color: Color(0xFF007AFF),
+                size: 20,
+              ),
+              label: const Text(
+                'Use Current Location',
+                style: TextStyle(
+                  color: Color(0xFF007AFF),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFF007AFF)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                backgroundColor: const Color(0xFF007AFF).withOpacity(0.1),
+              ),
+            ),
+          ),
+          
+          const Spacer(),
+          
+          // Combined Join Senorita & Continue with Google Button
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton.icon(
+              onPressed: _locationController.text.trim().isNotEmpty ? _completeApplication : null,
+              icon: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    'G',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              label: const Text(
+                'Join Senorita & Continue with Google',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                elevation: 0,
+                disabledBackgroundColor: const Color(0xFFE5E5EA),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  void _getCurrentLocation() async {
+    // Simulate getting current location
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFF007AFF)),
+            const SizedBox(height: 16),
+            const Text(
+              'Getting your location...',
+              style: TextStyle(
+                color: Color(0xFF1C1C1E),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
-      );
-      
-      setState(() => _isSubmitting = false);
-    }
+      ),
+    );
+
+    // Simulate location fetch
+    await Future.delayed(const Duration(seconds: 2));
+    
+    // Close loading dialog
+    Navigator.pop(context);
+    
+    // Set mock location data
+    setState(() {
+      _locationController.text = 'New York, NY, USA';
+      latitude = 40.7128;
+      longitude = -74.0060;
+    });
+    
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Location updated successfully'),
+        backgroundColor: const Color(0xFF007AFF),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
   }
 
   void _continueWithGoogle() async {
