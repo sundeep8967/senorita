@@ -118,6 +118,7 @@ dependencies:
   
   # Fonts
   google_fonts: ^6.1.0
+  glassmorphism: ^3.0.0
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
