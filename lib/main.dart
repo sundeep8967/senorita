@@ -105,12 +105,12 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [0.0, 0.3, 0.7, 1.0],
+            stops: [0.0, 0.4, 0.8, 1.0],
             colors: [
-              Color(0xFF1C1C1E), // iOS dark background
-              Color(0xFF2C2C2E), // Slightly lighter
-              Color(0xFF1C1C1E), // Back to dark
-              Color(0xFF000000), // Pure black at bottom
+              Color(0xFFF2F2F7), // iOS light background
+              Color(0xFFE5E5EA), // iOS secondary background
+              Color(0xFFD1D1D6), // iOS tertiary background
+              Color(0xFFC7C7CC), // iOS quaternary background
             ],
           ),
         ),
@@ -199,17 +199,17 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
                   center: Alignment.topLeft,
                   radius: 1.5,
                   colors: [
-                    Color(0xFF007AFF).withOpacity(0.08), // iOS blue
-                    Color(0xFF5856D6).withOpacity(0.06), // iOS purple
+                    Color(0xFF007AFF).withOpacity(0.15), // More visible on light bg
+                    Color(0xFF5856D6).withOpacity(0.12), // More visible on light bg
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.6, 1.0],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFF007AFF).withOpacity(0.1),
-                    blurRadius: 20,
-                    spreadRadius: 5,
+                    color: Color(0xFF007AFF).withOpacity(0.2),
+                    blurRadius: 15,
+                    spreadRadius: 2,
                   ),
                 ],
               ),
@@ -224,11 +224,11 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
     return Column(
       children: [
         const Text(
-          'RAYA',
+          'SENORITA',
           style: TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1C1C1E), // iOS label color
             fontSize: 32,
-            fontWeight: FontWeight.w300,
+            fontWeight: FontWeight.w600, // More iOS-like weight
             letterSpacing: 8.0,
           ),
         ),
@@ -267,7 +267,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
             shape: BoxShape.circle,
             color: _currentPage == index 
                 ? const Color(0xFF007AFF) // iOS blue for active
-                : Colors.white.withOpacity(0.3),
+                : const Color(0xFFC7C7CC), // iOS quaternary label
           ),
         );
       }),
@@ -300,9 +300,9 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
         Text(
           slide.title,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1C1C1E), // iOS label color
             fontSize: 28,
-            fontWeight: FontWeight.w300,
+            fontWeight: FontWeight.w600, // iOS-style semibold
             height: 1.2,
           ),
           textAlign: TextAlign.center,
@@ -312,9 +312,10 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
         
         Text(
           slide.subtitle,
-          style: TextStyle(
-            color: Colors.grey[400],
+          style: const TextStyle(
+            color: Color(0xFF8E8E93), // iOS secondary label
             fontSize: 16,
+            fontWeight: FontWeight.w400,
             height: 1.5,
           ),
           textAlign: TextAlign.center,
@@ -335,7 +336,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const RayaApplicationScreen(),
+                  builder: (context) => const SenoritaApplicationScreen(),
                 ),
               );
             },
@@ -345,11 +346,11 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
-              elevation: 0,
+              elevation: 2,
               shadowColor: const Color(0xFF007AFF).withOpacity(0.3),
             ),
             child: const Text(
-              'Apply to Join',
+              'Apply to Senorita',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
@@ -369,12 +370,12 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
               // Handle code action
             },
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFF48484A), width: 1), // iOS gray
+              foregroundColor: const Color(0xFF1C1C1E), // Dark text on light bg
+              side: const BorderSide(color: Color(0xFFC7C7CC), width: 1), // iOS separator
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
-              backgroundColor: Colors.white.withOpacity(0.05), // Subtle background
+              backgroundColor: Colors.white.withOpacity(0.8), // Light background
             ),
             child: const Text(
               'I Have a Code',
@@ -394,7 +395,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
             // Handle learn more
           },
           child: Text(
-            'Learn More About Raya',
+            'Learn More About Senorita',
             style: const TextStyle(
               color: Color(0xFF8E8E93), // iOS secondary label color
               fontSize: 14,
@@ -422,7 +423,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
                 center: Alignment.topLeft,
                 radius: 1.0,
                 colors: [
-                  const Color(0xFF007AFF).withOpacity(0.1),
+                  const Color(0xFF007AFF).withOpacity(0.2),
                   Colors.transparent,
                 ],
                 stops: const [0.0, 1.0],
@@ -442,7 +443,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
                 center: Alignment.bottomRight,
                 radius: 1.0,
                 colors: [
-                  const Color(0xFF5856D6).withOpacity(0.1),
+                  const Color(0xFF5856D6).withOpacity(0.2),
                   Colors.transparent,
                 ],
                 stops: const [0.0, 1.0],
@@ -467,14 +468,14 @@ class SlideData {
   });
 }
 
-class RayaApplicationScreen extends StatefulWidget {
-  const RayaApplicationScreen({Key? key}) : super(key: key);
+class SenoritaApplicationScreen extends StatefulWidget {
+  const SenoritaApplicationScreen({Key? key}) : super(key: key);
 
   @override
-  State<RayaApplicationScreen> createState() => _RayaApplicationScreenState();
+  State<SenoritaApplicationScreen> createState() => _SenoritaApplicationScreenState();
 }
 
-class _RayaApplicationScreenState extends State<RayaApplicationScreen> {
+class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -521,7 +522,7 @@ class _RayaApplicationScreenState extends State<RayaApplicationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Apply to Raya',
+                'Apply to Senorita',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 32,
@@ -615,6 +616,52 @@ class _RayaApplicationScreenState extends State<RayaApplicationScreen> {
               ),
               const SizedBox(height: 40),
               
+              // Continue with Google Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    _continueWithGoogle();
+                  },
+                  icon: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'G',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  label: const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
               // Submit Button
               SizedBox(
                 width: double.infinity,
@@ -698,7 +745,7 @@ class _RayaApplicationScreenState extends State<RayaApplicationScreen> {
             style: TextStyle(color: Colors.white),
           ),
           content: Text(
-            'Thank you for applying to Raya. We\'ll review your application and notify you soon.',
+            'Thank you for applying to Senorita. We\'ll review your application and notify you soon.',
             style: TextStyle(color: Colors.grey[300]),
           ),
           actions: [
@@ -716,6 +763,59 @@ class _RayaApplicationScreenState extends State<RayaApplicationScreen> {
       setState(() => _isSubmitting = false);
     }
   }
+
+  void _continueWithGoogle() async {
+    // Show loading state
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFF007AFF)),
+            const SizedBox(height: 16),
+            Text(
+              'Connecting with Google...',
+              style: TextStyle(color: Colors.grey[300]),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Simulate Google sign-in process
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Close loading dialog
+    Navigator.pop(context);
+
+    // Show success dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Welcome to Senorita!',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'You have successfully signed in with Google. Welcome to the Senorita community!',
+          style: TextStyle(color: Colors.grey[300]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to welcome screen
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // Usage in main.dart:
@@ -723,7 +823,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Raya Welcome',
+      title: 'Senorita Welcome',
       theme: ThemeData.dark(),
       home: const RayaWelcomeScreen(),
       debugShowCheckedModeBanner: false,
