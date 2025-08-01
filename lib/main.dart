@@ -103,12 +103,14 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0.0, 0.3, 0.7, 1.0],
             colors: [
-              Color(0xFF1a1a1a),
-              Color(0xFF000000),
-              Color(0xFF2d2d2d),
+              Color(0xFF1C1C1E), // iOS dark background
+              Color(0xFF2C2C2E), // Slightly lighter
+              Color(0xFF1C1C1E), // Back to dark
+              Color(0xFF000000), // Pure black at bottom
             ],
           ),
         ),
@@ -180,25 +182,36 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
 
   Widget _buildFloatingElement(int index) {
     return Positioned(
-      left: (index * 60.0) % MediaQuery.of(context).size.width,
-      top: (index * 80.0) % MediaQuery.of(context).size.height,
+      left: (index * 80.0) % MediaQuery.of(context).size.width,
+      top: (index * 120.0) % MediaQuery.of(context).size.height,
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0.0, end: 1.0),
-        duration: Duration(milliseconds: 2000 + (index * 500)),
+        duration: Duration(milliseconds: 3000 + (index * 800)),
         builder: (context, value, child) {
           return Transform.scale(
-            scale: 0.5 + (value * 0.5),
+            scale: 0.3 + (value * 0.4),
             child: Container(
-              width: 100 + (index * 20.0),
-              height: 100 + (index * 20.0),
+              width: 120 + (index * 15.0),
+              height: 120 + (index * 15.0),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
+                gradient: RadialGradient(
+                  center: Alignment.topLeft,
+                  radius: 1.5,
                   colors: [
-                    Colors.pinkAccent.withOpacity(0.1),
-                    Colors.purpleAccent.withOpacity(0.1),
+                    Color(0xFF007AFF).withOpacity(0.08), // iOS blue
+                    Color(0xFF5856D6).withOpacity(0.06), // iOS purple
+                    Colors.transparent,
                   ],
+                  stops: const [0.0, 0.6, 1.0],
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0xFF007AFF).withOpacity(0.1),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
               ),
             ),
           );
@@ -225,8 +238,16 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
           height: 2,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.pinkAccent, Colors.purpleAccent],
+              colors: [Color(0xFF007AFF), Color(0xFF5856D6)], // iOS blue to purple
             ),
+            borderRadius: BorderRadius.all(Radius.circular(1)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFF007AFF),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
           ),
         ),
       ],
@@ -245,8 +266,8 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: _currentPage == index 
-                ? Colors.white 
-                : Colors.grey.withOpacity(0.4),
+                ? const Color(0xFF007AFF) // iOS blue for active
+                : Colors.white.withOpacity(0.3),
           ),
         );
       }),
@@ -311,15 +332,21 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
           height: 56,
           child: ElevatedButton(
             onPressed: () {
-              // Handle apply action
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RayaApplicationScreen(),
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
+              backgroundColor: const Color(0xFF007AFF), // iOS blue
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
               elevation: 0,
+              shadowColor: const Color(0xFF007AFF).withOpacity(0.3),
             ),
             child: const Text(
               'Apply to Join',
@@ -343,10 +370,11 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
             },
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
-              side: BorderSide(color: Colors.grey[600]!),
+              side: const BorderSide(color: Color(0xFF48484A), width: 1), // iOS gray
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
+              backgroundColor: Colors.white.withOpacity(0.05), // Subtle background
             ),
             child: const Text(
               'I Have a Code',
@@ -367,10 +395,11 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
           },
           child: Text(
             'Learn More About Raya',
-            style: TextStyle(
-              color: Colors.grey[500],
+            style: const TextStyle(
+              color: Color(0xFF8E8E93), // iOS secondary label color
               fontSize: 14,
               decoration: TextDecoration.underline,
+              decorationColor: Color(0xFF8E8E93),
             ),
           ),
         ),
@@ -381,32 +410,42 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
   Widget _buildCornerAccents() {
     return Stack(
       children: [
-        // Top left
+        // Top left subtle glow
         Positioned(
           top: 0,
           left: 0,
           child: Container(
-            width: 100,
-            height: 100,
-            decoration: const BoxDecoration(
-              border: Border(
-                left: BorderSide(color: Colors.pinkAccent, width: 2),
-                top: BorderSide(color: Colors.pinkAccent, width: 2),
+            width: 150,
+            height: 150,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topLeft,
+                radius: 1.0,
+                colors: [
+                  const Color(0xFF007AFF).withOpacity(0.1),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 1.0],
               ),
             ),
           ),
         ),
-        // Bottom right
+        // Bottom right subtle glow
         Positioned(
           bottom: 0,
           right: 0,
           child: Container(
-            width: 100,
-            height: 100,
-            decoration: const BoxDecoration(
-              border: Border(
-                right: BorderSide(color: Colors.purpleAccent, width: 2),
-                bottom: BorderSide(color: Colors.purpleAccent, width: 2),
+            width: 150,
+            height: 150,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.bottomRight,
+                radius: 1.0,
+                colors: [
+                  const Color(0xFF5856D6).withOpacity(0.1),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 1.0],
               ),
             ),
           ),
@@ -426,6 +465,257 @@ class SlideData {
     required this.title,
     required this.subtitle,
   });
+}
+
+class RayaApplicationScreen extends StatefulWidget {
+  const RayaApplicationScreen({Key? key}) : super(key: key);
+
+  @override
+  State<RayaApplicationScreen> createState() => _RayaApplicationScreenState();
+}
+
+class _RayaApplicationScreenState extends State<RayaApplicationScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
+  String? _selectedCategory;
+  bool _isSubmitting = false;
+
+  final List<String> _categories = [
+    'Music',
+    'Art',
+    'Film',
+    'Tech',
+    'Fashion',
+    'Business',
+    'Sports',
+    'Other'
+  ];
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _bioController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Apply to Raya',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: 60,
+                height: 2,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.pinkAccent, Colors.purpleAccent],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+              
+              // Name Field
+              TextFormField(
+                controller: _nameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Full Name'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              
+              // Email Field
+              TextFormField(
+                controller: _emailController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Email Address'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              
+              // Category Dropdown
+              DropdownButtonFormField<String>(
+                dropdownColor: Colors.grey[900],
+                style: const TextStyle(color: Colors.white),
+                decoration: _buildInputDecoration('Primary Category'),
+                value: _selectedCategory,
+                items: _categories.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() {
+                    _selectedCategory = newValue;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select a category';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              
+              // Bio Field
+              TextFormField(
+                controller: _bioController,
+                style: const TextStyle(color: Colors.white),
+                maxLines: 4,
+                decoration: _buildInputDecoration('Tell us about yourself'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please tell us about yourself';
+                  }
+                  if (value.length < 50) {
+                    return 'Please write at least 50 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 40),
+              
+              // Submit Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submitApplication,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: _isSubmitting
+                      ? const CircularProgressIndicator(color: Colors.black)
+                      : const Text(
+                          'Submit Application',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Note
+              Text(
+                'We review each application carefully. You\'ll hear back from us within 2-3 weeks.',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey[500]),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: Colors.grey[700]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Colors.purpleAccent),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Colors.red),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Colors.red),
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  void _submitApplication() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSubmitting = true);
+      
+      // Simulate network request
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Show confirmation dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text(
+            'Application Submitted',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Thank you for applying to Raya. We\'ll review your application and notify you soon.',
+            style: TextStyle(color: Colors.grey[300]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Go back to welcome screen
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      
+      setState(() => _isSubmitting = false);
+    }
+  }
 }
 
 // Usage in main.dart:
