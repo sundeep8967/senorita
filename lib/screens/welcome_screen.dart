@@ -90,6 +90,56 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
     });
   }
 
+  void _showSignInDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          'Sign In',
+          style: TextStyle(
+            color: Color(0xFF1C1C1E),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: const Text(
+          'Welcome back! Sign in with your existing account to continue.',
+          style: TextStyle(
+            color: Color(0xFF8E8E93),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF8E8E93)),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Implement actual sign-in logic
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Sign-in functionality coming soon!'),
+                  backgroundColor: const Color(0xFF007AFF),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              );
+            },
+            child: const Text(
+              'Sign In',
+              style: TextStyle(color: Color(0xFF007AFF)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -135,12 +185,12 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
                       ),
                     ),
                     
-                    const SizedBox(height: 60),
+                    const SizedBox(height: 40),
                     
                     // Page indicators
                     _buildPageIndicators(),
                     
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 30),
                     
                     // Slides
                     Expanded(
@@ -158,7 +208,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
                       ),
                     ),
                     
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
                     
                     // Buttons
                     FadeTransition(
@@ -388,12 +438,12 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
           ),
         ),
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         
         // Learn more link
         TextButton(
           onPressed: () {
-            // Handle learn more
+
           },
           child: Text(
             'Learn More About Senorita',
@@ -404,6 +454,62 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
               decorationColor: Color(0xFF8E8E93),
             ),
           ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Sign In section for existing members
+        Column(
+          children: [
+            const Text(
+              'Already a member?',
+              style: TextStyle(
+                color: Color(0xFF8E8E93),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  _showSignInDialog();
+                },
+                icon: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: NetworkImage('https://developers.google.com/identity/images/g-logo.png'),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                label: const Text(
+                  'Continue with Google',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF1C1C1E),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  elevation: 2,
+                  shadowColor: Colors.black.withOpacity(0.1),
+                  side: const BorderSide(
+                    color: Color(0xFFE5E5EA),
+                    width: 1,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
