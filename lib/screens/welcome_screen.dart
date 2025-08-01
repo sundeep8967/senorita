@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'application_flow_screen.dart';
+import 'home_screen.dart';
 
 class RayaWelcomeScreen extends StatefulWidget {
   const RayaWelcomeScreen({Key? key}) : super(key: key);
@@ -90,48 +91,69 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
     });
   }
 
-  void _showSignInDialog() {
+  void _signInWithGoogle() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFF007AFF)),
+            const SizedBox(height: 16),
+            const Text(
+              'Signing in with Google...',
+              style: TextStyle(
+                color: Color(0xFF1C1C1E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Simulate Google sign-in process
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Close loading dialog
+    Navigator.pop(context);
+
+    // Navigate directly to home screen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
+  }
+
+  void _showAboutDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text(
-          'Sign In',
+          'About Senorita',
           style: TextStyle(
             color: Color(0xFF1C1C1E),
             fontWeight: FontWeight.w600,
           ),
         ),
         content: const Text(
-          'Welcome back! Sign in with your existing account to continue.',
+          'Senorita is an exclusive dating platform for creative professionals and interesting individuals. We focus on quality connections over quantity, bringing together like-minded people who value authenticity and meaningful relationships.',
           style: TextStyle(
             color: Color(0xFF8E8E93),
+            height: 1.4,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text(
-              'Cancel',
-              style: TextStyle(color: Color(0xFF8E8E93)),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implement actual sign-in logic
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Sign-in functionality coming soon!'),
-                  backgroundColor: const Color(0xFF007AFF),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              );
-            },
-            child: const Text(
-              'Sign In',
+              'Got it',
               style: TextStyle(color: Color(0xFF007AFF)),
             ),
           ),
@@ -443,7 +465,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
         // Learn more link
         TextButton(
           onPressed: () {
-
+            _showAboutDialog();
           },
           child: Text(
             'Learn More About Senorita',
@@ -475,7 +497,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
               height: 56,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  _showSignInDialog();
+                  _signInWithGoogle();
                 },
                 icon: Container(
                   width: 24,

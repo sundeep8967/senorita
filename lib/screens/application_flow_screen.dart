@@ -6,6 +6,7 @@ import 'profession_step_screen.dart';
 import 'photo_upload_step_screen.dart';
 import 'location_step_screen.dart';
 import 'google_signin_step_screen.dart';
+import 'home_screen.dart';
 
 class SenoritaApplicationScreen extends StatefulWidget {
   const SenoritaApplicationScreen({Key? key}) : super(key: key);
@@ -144,7 +145,10 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to welcome screen
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+              );
             },
             child: const Text(
               'Start Exploring',
