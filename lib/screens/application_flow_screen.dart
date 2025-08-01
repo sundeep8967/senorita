@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'name_step_screen.dart';
+import 'gender_step_screen.dart';
 import 'age_step_screen.dart';
 import 'profession_step_screen.dart';
+import 'photo_upload_step_screen.dart';
 import 'location_step_screen.dart';
 import 'google_signin_step_screen.dart';
 
@@ -24,8 +26,10 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
   
   // Data storage
   String fullName = '';
+  String selectedGender = '';
   String age = '';
   String profession = '';
+  List<String> uploadedPhotos = [];
   String location = '';
   double? latitude;
   double? longitude;
@@ -41,7 +45,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
   }
 
   void _nextStep() {
-    if (_currentStep < 4) {
+    if (_currentStep < 6) {
       setState(() {
         _currentStep++;
       });
@@ -76,6 +80,14 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
     location = _locationController.text;
     
     _joinSenoritaWithGoogle();
+  }
+
+  void _onGenderSelected(String gender) {
+    selectedGender = gender;
+  }
+
+  void _onPhotosSelected(List<String> photos) {
+    uploadedPhotos = photos;
   }
 
   void _joinSenoritaWithGoogle() async {
@@ -205,7 +217,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
           onPressed: _previousStep,
         ),
         actions: [
-          if (_currentStep > 0 && _currentStep < 4)
+          if (_currentStep > 0 && _currentStep < 6 && _currentStep != 4) // Skip not available for photo upload step
             TextButton(
               onPressed: _nextStep,
               child: const Text(
@@ -224,10 +236,10 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Row(
-              children: List.generate(5, (index) {
+              children: List.generate(7, (index) {
                 return Expanded(
                   child: Container(
-                    margin: EdgeInsets.only(right: index < 4 ? 8 : 0),
+                    margin: EdgeInsets.only(right: index < 6 ? 8 : 0),
                     height: 4,
                     decoration: BoxDecoration(
                       color: index <= _currentStep 
@@ -254,6 +266,11 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
                   controller: _nameController,
                   onNext: _nextStep,
                 ),
+                GenderStepScreen(
+                  onNext: _nextStep,
+                  onGenderSelected: _onGenderSelected,
+                  selectedGender: selectedGender.isNotEmpty ? selectedGender : null,
+                ),
                 AgeStepScreen(
                   controller: _ageController,
                   onNext: _nextStep,
@@ -261,6 +278,11 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
                 ProfessionStepScreen(
                   controller: _professionController,
                   onNext: _nextStep,
+                ),
+                PhotoUploadStepScreen(
+                  onNext: _nextStep,
+                  onPhotosSelected: _onPhotosSelected,
+                  selectedPhotos: uploadedPhotos.isNotEmpty ? uploadedPhotos : null,
                 ),
                 LocationStepScreen(
                   controller: _locationController,
