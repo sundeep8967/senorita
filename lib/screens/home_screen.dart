@@ -28,12 +28,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // Sample user data - only showing what we collect in onboarding
   final Map<String, dynamic> currentUser = {
     'name': 'Sofia Martinez',
-    'gender': 'Female',
     'age': 26,
     'profession': 'Photographer & Model',
-    'location': 'Los Angeles, CA',
-    'distance': '1.5 miles away',
-    'photoCount': 3, // Number of photos uploaded
   };
 
   @override
@@ -143,6 +139,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     },
                   ),
                   _buildGlassmorphicButton(
+                    icon: Icons.local_fire_department,
+                    onTap: () {
+                      // Handle fire/hot profiles
+                      _showFeedback('Hot profiles!');
+                    },
+                    isFireIcon: true,
+                  ),
+                  _buildGlassmorphicButton(
                     icon: Icons.chat_bubble_outline,
                     onTap: () {
                       // Handle messages
@@ -185,6 +189,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildGlassmorphicButton({
     required IconData icon,
     required VoidCallback onTap,
+    bool isFireIcon = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -196,16 +201,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: isFireIcon 
+                ? Colors.orange.withOpacity(0.3)
+                : Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: isFireIcon 
+                  ? Colors.orange.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.3),
                 width: 1,
               ),
+              boxShadow: isFireIcon ? [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ] : null,
             ),
             child: Icon(
               icon,
-              color: Colors.white,
+              color: isFireIcon ? Colors.orange[300] : Colors.white,
               size: 24,
             ),
           ),
@@ -317,37 +333,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ],
               ),
               
-              const SizedBox(height: 6),
-              
-              Row(
-                children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    color: Colors.white.withOpacity(0.9),
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${currentUser['location']} • ${currentUser['distance']}',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
               
               const SizedBox(height: 16),
-              
-              // Additional info - only what we collect
-              Row(
-                children: [
-                  _buildCleanInfoChip(Icons.person_outline, currentUser['gender']),
-                  const SizedBox(width: 12),
-                  _buildCleanInfoChip(Icons.photo_library, '${currentUser['photoCount']} photos'),
-                ],
-              ),
             ],
           ),
         ),
@@ -355,27 +342,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCleanInfoChip(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: Colors.white.withOpacity(0.9),
-          size: 18,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildActionButtons() {
     return Padding(
@@ -394,25 +360,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             },
           ),
           
-          // Super like button
-          _buildActionButton(
-            icon: Icons.star,
-            color: const Color(0xFF007AFF),
+          // Fire button (glassmorphic style)
+          _buildGlassmorphicActionButton(
+            icon: Icons.local_fire_department,
             size: 50,
             onTap: () {
-              // Handle super like
-              _showFeedback('Super liked!');
+              // Handle fire/hot
+              _showFeedback('Hot!');
             },
           ),
           
-          // Like button
+          // Chat button
           _buildActionButton(
-            icon: Icons.favorite,
+            icon: Icons.chat_bubble,
             color: const Color(0xFF34C759),
             size: 60,
             onTap: () {
-              // Handle like
-              _showFeedback('Liked!');
+              // Handle chat
+              _showFeedback('Start chat!');
             },
           ),
         ],
@@ -453,6 +418,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Icon(
               icon,
               color: Colors.white,
+              size: size * 0.4,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassmorphicActionButton({
+    required IconData icon,
+    required double size,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size / 2),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(size / 2),
+              border: Border.all(
+                color: Colors.orange.withOpacity(0.5),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: Colors.orange[300],
               size: size * 0.4,
             ),
           ),
