@@ -434,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
+        borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
@@ -442,23 +442,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             height: size,
             decoration: BoxDecoration(
               color: Colors.orange.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(size / 2),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: Colors.orange.withOpacity(0.5),
-                width: 2,
+                width: 1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.orange.withOpacity(0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Icon(
               icon,
               color: Colors.orange[300],
-              size: size * 0.4,
+              size: 24,
             ),
           ),
         ),
