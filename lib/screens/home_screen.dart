@@ -343,9 +343,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // Additional info - only what we collect
               Row(
                 children: [
-                  _buildInfoChip(Icons.person_outline, currentUser['gender']),
+                  _buildCleanInfoChip(Icons.person_outline, currentUser['gender']),
                   const SizedBox(width: 12),
-                  _buildInfoChip(Icons.photo_library, '${currentUser['photoCount']} photos'),
+                  _buildCleanInfoChip(Icons.photo_library, '${currentUser['photoCount']} photos'),
                 ],
               ),
             ],
@@ -355,36 +355,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1,
+  Widget _buildCleanInfoChip(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          color: Colors.white.withOpacity(0.9),
+          size: 18,
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
             color: Colors.white.withOpacity(0.9),
-            size: 16,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
