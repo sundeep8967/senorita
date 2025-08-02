@@ -30,9 +30,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     'name': 'Sofia Martinez',
     'age': 26,
     'profession': 'Photographer & Model',
-    'location': 'Barcelona, Spain',
-    'interests': ['Travel', 'Art', 'Photography', 'Yoga'],
-    'bio': 'Adventure seeker capturing moments one frame at a time',
   };
 
   @override
@@ -338,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           
           const SizedBox(height: 12),
           
-          // Profession and location
+          // Profession only
           Row(
             children: [
               Icon(
@@ -355,64 +352,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 16),
-              Icon(
-                Icons.location_on_outlined,
-                color: Colors.white.withOpacity(0.9),
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                currentUser['location'],
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Bio
-          Text(
-            currentUser['bio'],
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              height: 1.4,
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Interests
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: (currentUser['interests'] as List<String>).map((interest) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  interest,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }).toList(),
           ),
           
           const SizedBox(height: 16),
