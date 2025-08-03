@@ -301,11 +301,23 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Profession
-                Text(
-                  profileData['profession'],
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 14,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    profileData['profession'],
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -327,12 +339,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 24,
                       height: 24,
                       decoration: const BoxDecoration(
-                        color: Colors.blue,
+                        color: Colors.white,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
+                        Icons.verified,
+                        color: Colors.black,
                         size: 16,
                       ),
                     ),
