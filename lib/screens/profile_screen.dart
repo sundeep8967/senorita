@@ -65,7 +65,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       _cameras = await availableCameras();
       if (_cameras!.isNotEmpty) {
         _cameraController = CameraController(
-          _cameras!.first,
+          _cameras!.firstWhere(
+            (camera) => camera.lensDirection == CameraLensDirection.front,
+            orElse: () => _cameras!.first,
+          ),
           ResolutionPreset.high,
           enableAudio: false,
         );
@@ -278,10 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        IconButton(
-          onPressed: _switchCamera,
-          icon: const Icon(Icons.flip_camera_ios, color: Colors.white, size: 30),
-        ),
+        
         GestureDetector(
           onTap: _takePicture,
           child: Container(
@@ -295,10 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: const Icon(Icons.camera_alt, color: Colors.white, size: 30),
           ),
         ),
-        IconButton(
-          onPressed: _pickImageFromGallery,
-          icon: const Icon(Icons.photo_library, color: Colors.white, size: 30),
-        ),
+        
       ],
     );
   }
@@ -672,19 +669,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Future<void> _switchCamera() async {
-    if (_cameras == null || _cameras!.length < 2) return;
-    
-    final CameraDescription newCamera = _cameraController!.description == _cameras![0]
-        ? _cameras![1]
-        : _cameras![0];
-    
-    await _cameraController!.dispose();
-    _cameraController = CameraController(newCamera, ResolutionPreset.high);
-    await _cameraController!.initialize();
-    
-    if (mounted) setState(() {});
-  }
+  
 
   Future<void> _pickImageFromGallery() async {
     try {
