@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'dart:ui';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
@@ -10,417 +10,461 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late AnimationController _scaleController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _scaleAnimation;
-  
+class _HomeScreenState extends State<HomeScreen> {
   int _currentImageIndex = 0;
-  late Timer _imageTimer;
+  Timer? _imageTimer;
   
-  final List<String> _imageUrls = [
-    'assets/girl1a.jpg',
-    'assets/girl1b.jpg',
-    'assets/girl1c.jpg',
-  ];
-  
-  final Map<String, dynamic> currentUser = {
-    'name': 'Sofia Martinez',
-    'age': 26,
-    'profession': 'Photographer & Model',
+  final Map<String, dynamic> profileData = {
+    'name': 'Sophia Williams',
+    'age': 25,
+    'distance': '3.5 Km Away',
+    'location': 'Los Angeles, CA',
+    'bio': 'Book lover, coffee enthusiast, and part-time traveler. Looking for someone to share deep conversations and...',
+    'images': [
+      'assets/girl1a.jpg',
+      'assets/girl1b.jpg',
+      'assets/girl1c.jpg',
+    ]
   };
 
   @override
   void initState() {
     super.initState();
-    
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.5),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-    
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.elasticOut,
-    ));
-    
-    _fadeController.forward();
-    _slideController.forward();
-    _scaleController.forward();
-    
     _startImageSlideshow();
   }
 
   void _startImageSlideshow() {
-    _imageTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+    _imageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         setState(() {
-          _currentImageIndex = (_currentImageIndex + 1) % _imageUrls.length;
+          _currentImageIndex = (_currentImageIndex + 1) % (profileData['images'] as List).length;
         });
-        _scaleController.reset();
-        _scaleController.forward();
       }
     });
   }
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _scaleController.dispose();
-    _imageTimer.cancel();
+    _imageTimer?.cancel();
     super.dispose();
+  }
+
+  void _handleImageTap(String side) {
+    setState(() {
+      if (side == 'left' && _currentImageIndex > 0) {
+        _currentImageIndex--;
+      } else if (side == 'right' && _currentImageIndex < (profileData['images'] as List).length - 1) {
+        _currentImageIndex++;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Full screen background image with slideshow
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 1000),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: child,
-                ),
-              );
-            },
+          // Status Bar
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
             child: Container(
-              key: ValueKey(_currentImageIndex),
-              width: double.infinity,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(_imageUrls[_currentImageIndex]),
-                  fit: BoxFit.cover,
-                ),
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top,
+                left: 24,
+                right: 24,
+                bottom: 8,
               ),
-            ),
-          ),
-          
-          // Modern gradient overlay with better color transitions
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.2),
-                  Colors.black.withOpacity(0.6),
-                ],
-                stops: const [0.0, 0.5, 1.0],
-              ),
-            ),
-          ),
-          
-          // Top app bar with modern styling
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildModernButton(
-                    icon: CupertinoIcons.gear_solid,
-                    onTap: () {
-                      // Handle settings
-                    },
+                  const Text(
+                    '9:41',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  
+                  Row(
+                    children: [
+                      // Signal bars
+                      Row(
+                        children: [
+                          Container(width: 4, height: 12, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2))),
+                          const SizedBox(width: 2),
+                          Container(width: 4, height: 12, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2))),
+                          const SizedBox(width: 2),
+                          Container(width: 4, height: 12, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2))),
+                          const SizedBox(width: 2),
+                          Container(width: 4, height: 12, decoration: BoxDecoration(color: Colors.white.withOpacity(0.6), borderRadius: BorderRadius.circular(2))),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      // WiFi icon
+                      const Icon(Icons.wifi, color: Colors.white, size: 16),
+                      const SizedBox(width: 4),
+                      // Battery
+                      Container(
+                        width: 24,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            width: 4,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(2),
+                                bottomRight: Radius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
-          
-          // Bottom modern details panel
+
+          // Main Image Container
+          Positioned.fill(
+            child: Stack(
+              children: [
+                // Profile Image
+                Positioned.fill(
+                  child: Image.asset(
+                    profileData['images'][_currentImageIndex],
+                    fit: BoxFit.cover,
+                  ),
+                ),
+
+                // Tap zones for image navigation
+                Positioned.fill(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _handleImageTap('left'),
+                          child: Container(color: Colors.transparent),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _handleImageTap('right'),
+                          child: Container(color: Colors.transparent),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Gradient Overlay
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.8),
+                        ],
+                        stops: const [0.0, 0.6, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Image Progress Indicators
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: _buildModernDetailsPanel(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModernButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    bool isFireIcon = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isFireIcon 
-            ? Colors.orange.withOpacity(0.2)
-            : Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: isFireIcon ? Colors.orange[300] : Colors.white,
-          size: 24,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernDetailsPanel() {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Name and age with modern styling
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${currentUser['name']}, ${currentUser['age']}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
+            top: MediaQuery.of(context).padding.top + 60,
+            left: 16,
+            right: 16,
+            child: Row(
+              children: List.generate(
+                (profileData['images'] as List).length,
+                (index) => Expanded(
+                  child: Container(
+                    height: 4,
+                    margin: EdgeInsets.only(right: index < (profileData['images'] as List).length - 1 ? 8 : 0),
+                    decoration: BoxDecoration(
+                      color: index == _currentImageIndex ? Colors.white : Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            ),
+          ),
+
+          // Back Button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 80,
+            left: 16,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+
+          // Location Badge
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 80,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.verified,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    SizedBox(width: 4),
+                  children: [
                     Text(
-                      'Verified',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                      profileData['location'],
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.location_on,
+                      color: Colors.black,
+                      size: 16,
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-          
-          const SizedBox(height: 12),
-          
-          // Profession only
-          Row(
-            children: [
-              Icon(
-                Icons.work_outline,
-                color: Colors.white.withOpacity(0.9),
-                size: 18,
+
+          // Right Side Action Buttons
+          Positioned(
+            right: 16,
+            top: MediaQuery.of(context).size.height * 0.4,
+            child: Column(
+              children: [
+                _buildActionButton(Icons.favorite_border),
+                const SizedBox(height: 16),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildActionButton(Icons.more_horiz),
+                const SizedBox(height: 16),
+                _buildActionButton(Icons.message),
+              ],
+            ),
+          ),
+
+          // Bottom Profile Info
+          Positioned(
+            bottom: 100,
+            left: 24,
+            right: 24,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Distance
+                Text(
+                  profileData['distance'],
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // Name and Age
+                Row(
+                  children: [
+                    Text(
+                      '${profileData['name']}, ${profileData['age']}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Bio
+                Text(
+                  profileData['bio'],
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Bottom Navigation
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom,
               ),
-              const SizedBox(width: 8),
-              Text(
-                currentUser['profession'],
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.4),
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
                 ),
               ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-
-          // Modern action buttons
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: _buildModernActionButtons(),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Image indicators
-          _buildImageIndicators(),
-
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModernActionButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // Fire button (glassmorphic style)
-          _buildGlassmorphicActionButton(
-            icon: Icons.local_fire_department,
-            size: 55,
-            onTap: () {
-              _showFeedback('Hot!');
-            },
-            color: Colors.orange,
-          ),
-          
-          // Chat button (glassmorphic style)
-          _buildGlassmorphicActionButton(
-            icon: Icons.chat_bubble,
-            size: 65,
-            onTap: () {
-              _showFeedback('Start chat!');
-            },
-            color: const Color(0xFF007AFF),
-          ),
-        ],
-      ),
-    );
-  }
-
-  
-
-  Widget _buildGlassmorphicActionButton({
-    required IconData icon,
-    required double size,
-    required VoidCallback onTap,
-    required Color color,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        // Home icon (active)
+                        Container(
+                          width: 48,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/custom_icon.svg',
+                              width: 20,
+                              height: 20,
+                              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                            ),
+                          ),
+                        ),
+                        
+                        // Messages with notification
+                        Stack(
+                          children: [
+                            Icon(
+                              Icons.message,
+                              color: Colors.white.withOpacity(0.6),
+                              size: 24,
+                            ),
+                            Positioned(
+                              right: -2,
+                              top: -2,
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    '12',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        Icon(
+                          Icons.notifications,
+                          color: Colors.white.withOpacity(0.6),
+                          size: 24,
+                        ),
+                        
+                        Icon(
+                          Icons.refresh,
+                          color: Colors.white.withOpacity(0.6),
+                          size: 24,
+                        ),
+                        
+                        Icon(
+                          Icons.person,
+                          color: Colors.white.withOpacity(0.6),
+                          size: 24,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: color,
-          size: size * 0.45,
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildImageIndicators() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_imageUrls.length, (index) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: _currentImageIndex == index ? 24 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: _currentImageIndex == index 
-                ? Colors.white 
-                : Colors.white.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        );
-      }),
-    );
-  }
-
-  void _showFeedback(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: const Color(0xFF007AFF).withOpacity(0.9),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 6,
-        duration: const Duration(seconds: 1),
+  Widget _buildActionButton(IconData icon) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+      ),
+      child: SvgPicture.asset(
+        'assets/custom_icon.svg',
+        width: 24,
+        height: 24,
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
       ),
     );
   }
