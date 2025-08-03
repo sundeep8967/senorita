@@ -808,10 +808,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     
     if (currentTab == 0) {
       // Face verification tab
-      return _faceVerified ? 'Go to Next Step' : 'Complete Face Verification';
+      return _faceVerified ? 'Go to Next Step' : (_capturedImage != null ? 'Complete Face Verification' : 'Take Photo First');
     } else if (currentTab == 1) {
       // Document verification tab
-      return _documentVerified ? 'Go to Next Step' : 'Complete ID Verification';
+      return _documentVerified ? 'Go to Next Step' : (_selectedDocument != null ? 'Complete ID Verification' : 'Verify ID');
     } else {
       // Bio tab
       return _bioCompleted ? 'Complete Verification' : 'Complete Bio (${_bioText.length}/50)';
@@ -823,10 +823,22 @@ class _ProfileScreenState extends State<ProfileScreen>
     
     if (currentTab == 0) {
       // Face verification tab
-      return _faceVerified ? _goToNextStep : null;
+      if (_faceVerified) {
+        return _goToNextStep;
+      } else if (_capturedImage != null) {
+        return _verifyFace; // This will verify and auto-move to next step
+      } else {
+        return null; // Disabled until photo is taken
+      }
     } else if (currentTab == 1) {
       // Document verification tab
-      return _documentVerified ? _goToNextStep : null;
+      if (_documentVerified) {
+        return _goToNextStep;
+      } else if (_selectedDocument != null) {
+        return _verifyDocument; // This will verify and auto-move to next step
+      } else {
+        return null; // Disabled until document is uploaded
+      }
     } else {
       // Bio tab
       return _bioCompleted ? _submitVerification : null;
