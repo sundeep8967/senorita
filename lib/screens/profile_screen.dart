@@ -5,8 +5,6 @@ import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -23,12 +21,15 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // Controllers
   final TextEditingController _bioController = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
 
   // States
-  int _currentStep = 0;
   bool _isLoading = false;
   String _verificationStatus = '';
+
+  // Completion states
+  bool _faceVerified = false;
+  bool _documentVerified = false;
+  bool _bioCompleted = false;
 
   // Face Verification
   CameraController? _cameraController;
@@ -102,7 +103,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         opacity: _fadeAnimation,
         child: Column(
           children: [
-            _buildProgressIndicator(),
             _buildTabBar(),
             Expanded(
               child: TabBarView(
@@ -141,27 +141,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildProgressIndicator() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: List.generate(3, (index) {
-          return Expanded(
-            child: Container(
-              margin: EdgeInsets.only(right: index < 2 ? 8 : 0),
-              height: 4,
-              decoration: BoxDecoration(
-                color: index <= _tabController.index
-                    ? const Color(0xFF007AFF)
-                    : Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 
   Widget _buildTabBar() {
     return Container(
@@ -172,14 +151,48 @@ class _ProfileScreenState extends State<ProfileScreen>
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white.withOpacity(0.6),
         labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-        tabs: const [
-          Tab(text: 'Face Verify'),
-          Tab(text: 'ID Check'),
-          Tab(text: 'Bio'),
+        tabs: [
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Face Verify'),
+                if (_faceVerified) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                ],
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('ID Check'),
+                if (_documentVerified) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                ],
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Bio'),
+                if (_bioCompleted) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
 
   Widget _buildFaceVerificationTab() {
     return Container(
@@ -561,6 +574,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 onChanged: (text) {
                   setState(() {
                     _bioText = text;
+                    _bioCompleted = text.trim().length >= 50;
                   });
                 },
               ),
@@ -593,6 +607,167 @@ class _ProfileScreenState extends State<ProfileScreen>
         ],
       ),
     );
+  }
+
+  
+
+  // Camera Functions
+  Future<void> _takePicture() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    
+    try {
+      final XFile image = await _cameraController!.takePicture();
+      setState(() {
+        _capturedImage = image;
+      });
+    } catch (e) {
+      _showSnackBar('Error taking picture: $e');
+    }
+  }
+
+  
+
+  
+
+  // Document Functions
+  Future<void> _pickDocument() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _selectedDocument = File(result.files.single.path!);
+        });
+      }
+    } catch (e) {
+      _showSnackBar('Error picking document: $e');
+    }
+  }
+
+  // Verification Functions
+  Future<void> _verifyFace() async {
+    if (_capturedImage == null) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Simulate API call to face verification service
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // TODO: Implement actual face verification API
+      
+      setState(() {
+        _verificationStatus = 'Face verification successful! ✓';
+        _faceVerified = true;
+        _isLoading = false;
+      });
+      
+      // Auto-move to next tab after a short delay
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _tabController.animateTo(1);
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showSnackBar('Face verification failed. Please try again.');
+    }
+  }
+
+  Future<void> _verifyDocument() async {
+    if (_selectedDocument == null) return;
+    
+    setState(() {
+      _isLoading = true;
+      _verificationStatus = '';
+    });
+
+    try {
+      // Simulate API call to document verification service
+      await Future.delayed(const Duration(seconds: 3));
+      
+      // TODO: Implement actual document verification API
+      // Example: IDfy, HyperVerge KYC, or similar service
+      /*
+      final response = await http.post(
+        Uri.parse('https://api.idfy.com/v2/verifications'),
+        headers: {
+          'Authorization': 'Bearer YOUR_API_TOKEN',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'document_type': _selectedDocType.toLowerCase(),
+          'document_image': base64Encode(await _selectedDocument!.readAsBytes()),
+        }),
+      );
+      */
+      
+      setState(() {
+        _verificationStatus = '$_selectedDocType verification successful! ✓';
+        _documentVerified = true;
+        _isLoading = false;
+      });
+      
+      // Auto-move to next tab after a short delay
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _tabController.animateTo(2);
+      }
+    } catch (e) {
+      setState(() {
+        _verificationStatus = 'Document verification failed. Please try again.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _submitVerification() async {
+    if (!_canProceed()) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Submit all verification data to your backend
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // TODO: Implement backend submission
+      /*
+      final response = await http.post(
+        Uri.parse('https://your-api.com/submit-verification'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'face_image': base64Encode(await _capturedImage!.readAsBytes()),
+          'document_type': _selectedDocType,
+          'document_image': base64Encode(await _selectedDocument!.readAsBytes()),
+          'bio': _bioText,
+        }),
+      );
+      */
+      
+      _showSnackBar('Verification submitted successfully!');
+      Navigator.pop(context, true); // Return success
+    } catch (e) {
+      _showSnackBar('Submission failed. Please try again.');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+
+  bool _canProceed() {
+    return _faceVerified && 
+           _documentVerified && 
+           _bioCompleted;
   }
 
   Widget _buildBottomActions() {
@@ -653,177 +828,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         ],
       ),
     );
-  }
-
-  // Camera Functions
-  Future<void> _takePicture() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
-    
-    try {
-      final XFile image = await _cameraController!.takePicture();
-      setState(() {
-        _capturedImage = image;
-      });
-    } catch (e) {
-      _showSnackBar('Error taking picture: $e');
-    }
-  }
-
-  
-
-  Future<void> _pickImageFromGallery() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        setState(() {
-          _capturedImage = image;
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error picking image: $e');
-    }
-  }
-
-  // Document Functions
-  Future<void> _pickDocument() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-      );
-
-      if (result != null && result.files.single.path != null) {
-        setState(() {
-          _selectedDocument = File(result.files.single.path!);
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error picking document: $e');
-    }
-  }
-
-  // Verification Functions
-  Future<void> _verifyFace() async {
-    if (_capturedImage == null) return;
-    
-    setState(() {
-      _isLoading = true;
-      _verificationStatus = '';
-    });
-
-    try {
-      // Simulate API call to face verification service
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // TODO: Implement actual face verification API
-      // Example: HyperVerge, AWS Rekognition, or similar service
-      /*
-      final response = await http.post(
-        Uri.parse('https://api.hyperverge.co/v2.0/verifyFace'),
-        headers: {
-          'appId': 'YOUR_APP_ID',
-          'appKey': 'YOUR_APP_KEY',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'image': base64Encode(await _capturedImage!.readAsBytes()),
-        }),
-      );
-      */
-      
-      setState(() {
-        _verificationStatus = 'Face verification successful! ✓';
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _verificationStatus = 'Face verification failed. Please try again.';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _verifyDocument() async {
-    if (_selectedDocument == null) return;
-    
-    setState(() {
-      _isLoading = true;
-      _verificationStatus = '';
-    });
-
-    try {
-      // Simulate API call to document verification service
-      await Future.delayed(const Duration(seconds: 3));
-      
-      // TODO: Implement actual document verification API
-      // Example: IDfy, HyperVerge KYC, or similar service
-      /*
-      final response = await http.post(
-        Uri.parse('https://api.idfy.com/v2/verifications'),
-        headers: {
-          'Authorization': 'Bearer YOUR_API_TOKEN',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'document_type': _selectedDocType.toLowerCase(),
-          'document_image': base64Encode(await _selectedDocument!.readAsBytes()),
-        }),
-      );
-      */
-      
-      setState(() {
-        _verificationStatus = '$_selectedDocType verification successful! ✓';
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _verificationStatus = 'Document verification failed. Please try again.';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _submitVerification() async {
-    if (!_canProceed()) return;
-    
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Submit all verification data to your backend
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // TODO: Implement backend submission
-      /*
-      final response = await http.post(
-        Uri.parse('https://your-api.com/submit-verification'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'face_image': base64Encode(await _capturedImage!.readAsBytes()),
-          'document_type': _selectedDocType,
-          'document_image': base64Encode(await _selectedDocument!.readAsBytes()),
-          'bio': _bioText,
-        }),
-      );
-      */
-      
-      _showSnackBar('Verification submitted successfully!');
-      Navigator.pop(context, true); // Return success
-    } catch (e) {
-      _showSnackBar('Submission failed. Please try again.');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  bool _canProceed() {
-    return _capturedImage != null && 
-           _selectedDocument != null && 
-           _bioText.trim().isNotEmpty &&
-           _bioText.trim().length >= 50; // Minimum bio length
   }
 
   void _showSnackBar(String message) {
