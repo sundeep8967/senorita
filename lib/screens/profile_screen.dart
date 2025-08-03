@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'home_screen.dart';
+import 'profile_display_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -21,9 +22,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   late Animation<double> _fadeAnimation;
 
   // Controllers
+  final TextEditingController _bioController = TextEditingController();
 
   // States
   bool _isLoading = false;
+  String _bioText = '';
   String _verificationStatus = '';
 
   // Completion states
@@ -85,6 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void dispose() {
     _tabController.dispose();
     _animationController.dispose();
+    _bioController.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -715,13 +719,22 @@ class _ProfileScreenState extends State<ProfileScreen>
       
       _showSnackBar('Verification submitted successfully!');
       
-      // Navigate to next screen (home screen for now)
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
+      // Navigate to ProfileDisplayScreen with collected data
+     if (mounted) {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (context) => ProfileDisplayScreen(
+        name: 'Sophia Williams', // Replace with actual collected name
+        age: 25, // Replace with actual collected age
+        profession: 'Software Engineer', // Replace with actual collected profession
+        bio: _bioText, // Pass the collected bio
+        images: _capturedImage != null ? [File(_capturedImage!.path)] : null, // Convert to list
+        location: 'Bangalore, KA', // Add location parameter
+      ),
+    ),
+  );
+}
     } catch (e) {
       _showSnackBar('Submission failed. Please try again.');
     } finally {
