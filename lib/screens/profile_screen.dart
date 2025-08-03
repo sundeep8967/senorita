@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'home_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -613,7 +614,11 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // Camera Functions
   Future<void> _takePicture() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      // Fallback to gallery picker if camera not available (emulator)
+      await _pickImageFromGallery();
+      return;
+    }
     
     try {
       final XFile image = await _cameraController!.takePicture();
@@ -621,7 +626,28 @@ class _ProfileScreenState extends State<ProfileScreen>
         _capturedImage = image;
       });
     } catch (e) {
-      _showSnackBar('Error taking picture: $e');
+      _showSnackBar('Camera not available. Using gallery picker...');
+      await _pickImageFromGallery();
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        setState(() {
+          _capturedImage = image;
+        });
+      }
+    } catch (e) {
+      _showSnackBar('Error picking image: $e');
     }
   }
 
@@ -753,7 +779,14 @@ class _ProfileScreenState extends State<ProfileScreen>
       */
       
       _showSnackBar('Verification submitted successfully!');
-      Navigator.pop(context, true); // Return success
+      
+      // Navigate to next screen (home screen for now)
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
     } catch (e) {
       _showSnackBar('Submission failed. Please try again.');
     } finally {
@@ -768,6 +801,43 @@ class _ProfileScreenState extends State<ProfileScreen>
     return _faceVerified && 
            _documentVerified && 
            _bioCompleted;
+  }
+
+  String _getButtonText() {
+    int currentTab = _tabController.index;
+    
+    if (currentTab == 0) {
+      // Face verification tab
+      return _faceVerified ? 'Go to Next Step' : 'Complete Face Verification';
+    } else if (currentTab == 1) {
+      // Document verification tab
+      return _documentVerified ? 'Go to Next Step' : 'Complete ID Verification';
+    } else {
+      // Bio tab
+      return _bioCompleted ? 'Complete Verification' : 'Complete Bio (${_bioText.length}/50)';
+    }
+  }
+
+  VoidCallback? _getButtonAction() {
+    int currentTab = _tabController.index;
+    
+    if (currentTab == 0) {
+      // Face verification tab
+      return _faceVerified ? _goToNextStep : null;
+    } else if (currentTab == 1) {
+      // Document verification tab
+      return _documentVerified ? _goToNextStep : null;
+    } else {
+      // Bio tab
+      return _bioCompleted ? _submitVerification : null;
+    }
+  }
+
+  void _goToNextStep() {
+    int currentTab = _tabController.index;
+    if (currentTab < 2) {
+      _tabController.animateTo(currentTab + 1);
+    }
   }
 
   Widget _buildBottomActions() {
@@ -800,7 +870,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _canProceed() ? _submitVerification : null,
+              onPressed: _getButtonAction(),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF007AFF),
                 disabledBackgroundColor: Colors.grey[800],
@@ -815,9 +885,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       height: 24,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
-                  : const Text(
-                      'Complete Verification',
-                      style: TextStyle(
+                  : Text(
+                      _getButtonText(),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
