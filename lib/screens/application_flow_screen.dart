@@ -4,6 +4,7 @@ import 'gender_step_screen.dart';
 import 'age_step_screen.dart';
 import 'profession_step_screen.dart';
 import 'photo_upload_step_screen.dart';
+import 'bio_step_screen.dart';
 import 'location_step_screen.dart';
 import 'google_signin_step_screen.dart';
 import 'home_screen.dart';
@@ -23,6 +24,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _professionController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   
   // Data storage
@@ -31,6 +33,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
   String age = '';
   String profession = '';
   List<String> uploadedPhotos = [];
+  String bio = '';
   String location = '';
   double? latitude;
   double? longitude;
@@ -40,13 +43,14 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
     _nameController.dispose();
     _ageController.dispose();
     _professionController.dispose();
+    _bioController.dispose();
     _locationController.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
   void _nextStep() {
-    if (_currentStep < 6) {
+    if (_currentStep < 7) {
       setState(() {
         _currentStep++;
       });
@@ -78,6 +82,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
     fullName = _nameController.text;
     age = _ageController.text;
     profession = _professionController.text;
+    bio = _bioController.text;
     location = _locationController.text;
     
     _joinSenoritaWithGoogle();
@@ -221,7 +226,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
           onPressed: _previousStep,
         ),
         actions: [
-          if (_currentStep > 0 && _currentStep < 6 && _currentStep != 4) // Skip not available for photo upload step
+          if (_currentStep > 0 && _currentStep < 7 && _currentStep != 5) // Skip not available for photo upload step
             TextButton(
               onPressed: _nextStep,
               child: const Text(
@@ -240,10 +245,10 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Row(
-              children: List.generate(7, (index) {
+              children: List.generate(8, (index) {
                 return Expanded(
                   child: Container(
-                    margin: EdgeInsets.only(right: index < 6 ? 8 : 0),
+                    margin: EdgeInsets.only(right: index < 7 ? 8 : 0),
                     height: 4,
                     decoration: BoxDecoration(
                       color: index <= _currentStep 
@@ -287,6 +292,10 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
                   onNext: _nextStep,
                   onPhotosSelected: _onPhotosSelected,
                   selectedPhotos: uploadedPhotos.isNotEmpty ? uploadedPhotos : null,
+                ),
+                BioStepScreen(
+                  controller: _bioController,
+                  onComplete: _nextStep,
                 ),
                 LocationStepScreen(
                   controller: _locationController,

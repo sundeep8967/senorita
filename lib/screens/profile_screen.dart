@@ -21,7 +21,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   late Animation<double> _fadeAnimation;
 
   // Controllers
-  final TextEditingController _bioController = TextEditingController();
 
   // States
   bool _isLoading = false;
@@ -30,7 +29,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   // Completion states
   bool _faceVerified = false;
   bool _documentVerified = false;
-  bool _bioCompleted = false;
 
   // Face Verification
   CameraController? _cameraController;
@@ -43,14 +41,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   String _selectedDocType = 'Aadhaar';
   final List<String> _docTypes = ['Aadhaar', 'PAN', 'Passport'];
 
-  // Bio
-  String _bioText = '';
-  final int _maxBioLength = 500;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -90,7 +85,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   void dispose() {
     _tabController.dispose();
     _animationController.dispose();
-    _bioController.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -111,7 +105,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 children: [
                   _buildFaceVerificationTab(),
                   _buildDocumentUploadTab(),
-                  _buildBioTab(),
                 ],
               ),
             ),
@@ -171,18 +164,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               children: [
                 const Text('ID Check'),
                 if (_documentVerified) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                ],
-              ],
-            ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Bio'),
-                if (_bioCompleted) ...[
                   const SizedBox(width: 8),
                   const Icon(Icons.check_circle, color: Colors.green, size: 16),
                 ],
@@ -544,91 +525,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildBioTab() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          const Text(
-            'Tell us about yourself',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Write a brief bio to help others get to know you better',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 30),
-          
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.2)),
-              ),
-              child: TextField(
-                controller: _bioController,
-                maxLines: null,
-                maxLength: _maxBioLength,
-                expands: true,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: InputDecoration(
-                  hintText: 'Share your interests, hobbies, what you\'re looking for...',
-                  hintStyle: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 16,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.all(20),
-                  counterStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                ),
-                onChanged: (text) {
-                  setState(() {
-                    _bioText = text;
-                    _bioCompleted = text.trim().length >= 50;
-                  });
-                },
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Character count and tips
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${_bioText.length}/$_maxBioLength characters',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 14,
-                ),
-              ),
-              Text(
-                'Be authentic!',
-                style: TextStyle(
-                  color: Color(0xFF007AFF),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   
 
@@ -783,11 +679,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         _isLoading = false;
       });
       
-      // Auto-move to next tab after a short delay
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) {
-        _tabController.animateTo(2);
-      }
+      // Document verification complete - ready for final submission
     } catch (e) {
       setState(() {
         _verificationStatus = 'Document verification failed. Please try again.';
@@ -842,8 +734,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   bool _canProceed() {
     return _faceVerified && 
-           _documentVerified && 
-           _bioCompleted;
+           _documentVerified;
   }
 
   String _getButtonText() {
@@ -852,12 +743,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (currentTab == 0) {
       // Face verification tab
       return _faceVerified ? 'Go to Next Step' : (_capturedImage != null ? 'Complete Face Verification' : 'Take Photo First');
-    } else if (currentTab == 1) {
-      // Document verification tab
-      return _documentVerified ? 'Go to Next Step' : (_selectedDocument != null ? 'Complete ID Verification' : 'Verify ID');
     } else {
-      // Bio tab
-      return _bioCompleted ? 'Complete Verification' : 'Complete Bio (${_bioText.length}/50)';
+      // Document verification tab (now tab 1, final step)
+      return _documentVerified ? 'Complete Verification' : (_selectedDocument != null ? 'Complete ID Verification' : 'Verify ID');
     }
   }
 
@@ -873,24 +761,21 @@ class _ProfileScreenState extends State<ProfileScreen>
       } else {
         return null; // Disabled until photo is taken
       }
-    } else if (currentTab == 1) {
-      // Document verification tab
+    } else {
+      // Document verification tab (now final step)
       if (_documentVerified) {
-        return _goToNextStep;
+        return _submitVerification; // Complete verification and go to home
       } else if (_selectedDocument != null) {
-        return _verifyDocument; // This will verify and auto-move to next step
+        return _verifyDocument; // This will verify and enable completion
       } else {
         return null; // Disabled until document is uploaded
       }
-    } else {
-      // Bio tab
-      return _bioCompleted ? _submitVerification : null;
     }
   }
 
   void _goToNextStep() {
     int currentTab = _tabController.index;
-    if (currentTab < 2) {
+    if (currentTab < 1) {
       _tabController.animateTo(currentTab + 1);
     }
   }
