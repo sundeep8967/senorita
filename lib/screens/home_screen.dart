@@ -271,6 +271,8 @@ class _HomeScreenState extends State<HomeScreen> {
             top: MediaQuery.of(context).size.height * 0.4,
             child: Column(
               children: [
+                _buildActionButton(Icons.notifications),
+                const SizedBox(height: 16),
                 _buildActionButton(Icons.favorite_border),
                 const SizedBox(height: 16),
                 Container(
@@ -430,16 +432,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           size: 24,
                         ),
                         
-                        Icon(
-                          Icons.refresh,
-                          color: Colors.white.withOpacity(0.6),
-                          size: 24,
+                        SvgPicture.asset(
+                          'assets/notch_icon.svg',
+                          width: 24,
+                          height: 24,
+                          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                         ),
                         
-                        Icon(
-                          Icons.person,
-                          color: Colors.white.withOpacity(0.6),
-                          size: 24,
+                        SvgPicture.asset(
+                          'assets/person_icon.svg',
+                          width: 24,
+                          height: 24,
+                          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                         ),
                       ],
                     ),
