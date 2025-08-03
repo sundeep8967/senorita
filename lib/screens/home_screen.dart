@@ -212,24 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Back Button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 16,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ),
+          
 
           // Location Badge
           Positioned(
@@ -272,8 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
             top: MediaQuery.of(context).size.height * 0.4,
             child: Column(
               children: [
-                _buildActionButton(Icons.notifications),
-                const SizedBox(height: 16),
+                
                 _buildActionButton(Icons.favorite_border),
                 const SizedBox(height: 16),
                 Container(
