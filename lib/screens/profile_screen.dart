@@ -429,46 +429,66 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildDocumentUploadArea() {
-    return GestureDetector(
-      onTap: _pickDocument,
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.3),
-            style: BorderStyle.solid,
-            width: 2,
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          style: BorderStyle.solid,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.credit_card,
+            size: 80,
+            color: Colors.white.withOpacity(0.6),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.cloud_upload_outlined,
-              size: 80,
-              color: Colors.white.withOpacity(0.6),
+          const SizedBox(height: 20),
+          Text(
+            'Capture your $_selectedDocType',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Tap to upload $_selectedDocType',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+          ),
+          const SizedBox(height: 30),
+          
+          // Camera button only
+          GestureDetector(
+            onTap: _captureDocument,
+            child: Container(
+              width: 200,
+              height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xFF007AFF),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.camera_alt, color: Colors.white, size: 24),
+                  SizedBox(width: 12),
+                  Text('Capture Document', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Supported formats: JPG, PNG, PDF',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 14,
-              ),
+          ),
+          
+          const SizedBox(height: 15),
+          Text(
+            'Live capture ensures authenticity',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 14,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -656,6 +676,29 @@ class _ProfileScreenState extends State<ProfileScreen>
   
 
   // Document Functions
+  Future<void> _captureDocument() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.rear, // Use back camera
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 90, // Higher quality for documents
+      );
+      
+      if (image != null) {
+        setState(() {
+          _selectedDocument = File(image.path);
+        });
+      }
+    } catch (e) {
+      // Fallback to gallery if camera fails (emulator)
+      _showSnackBar('Camera not available. Using gallery picker...');
+      await _pickDocument();
+    }
+  }
+
   Future<void> _pickDocument() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
