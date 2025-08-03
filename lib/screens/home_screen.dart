@@ -18,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'name': 'Sophia Williams',
     'age': 25,
     'distance': '3.5 Km Away',
-    'location': 'Los Angeles, CA',
+    'location': 'Bangalore, KA',
     'profession': 'Software Engineer',
     'bio': 'Book lover, coffee enthusiast, and part-time traveler. Looking for someone to share deep conversations and...',
     'images': [
@@ -192,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Image Progress Indicators
           Positioned(
-            top: MediaQuery.of(context).padding.top + 60,
+            top: MediaQuery.of(context).padding.top + 5,
             left: 16,
             right: 16,
             child: Row(
@@ -214,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Back Button
           Positioned(
-            top: MediaQuery.of(context).padding.top + 80,
+            top: MediaQuery.of(context).padding.top + 10,
             left: 16,
             child: Container(
               width: 40,
@@ -233,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Location Badge
           Positioned(
-            top: MediaQuery.of(context).padding.top + 80,
+            top: MediaQuery.of(context).padding.top + 20,
             left: 0,
             right: 0,
             child: Center(
