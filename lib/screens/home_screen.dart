@@ -235,12 +235,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ? Colors.orange.withOpacity(0.2)
             : Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isFireIcon 
-              ? Colors.orange.withOpacity(0.4)
-              : Colors.white.withOpacity(0.2),
-            width: 1,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -266,10 +260,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(30),
           topRight: Radius.circular(30),
-        ),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -300,15 +290,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF34C759).withOpacity(0.8),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF34C759).withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -451,10 +434,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           color: Colors.orange.withOpacity(0.2),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.orange.withOpacity(0.4),
-            width: 1,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),

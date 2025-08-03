@@ -31,7 +31,7 @@ class _GoogleSignInStepScreenState extends State<GoogleSignInStepScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Successfully signed in with Google!'),
-        backgroundColor: const Color(0xFF34C759),
+        backgroundColor: Colors.blue,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

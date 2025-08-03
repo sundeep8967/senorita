@@ -38,7 +38,7 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Photo ${_uploadedPhotos.length} added successfully!'),
-          backgroundColor: const Color(0xFF34C759),
+          backgroundColor: Colors.blue,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -115,7 +115,7 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
               children: [
                 Icon(
                   _canContinue ? Icons.check_circle : Icons.info_outline,
-                  color: _canContinue ? const Color(0xFF34C759) : const Color(0xFF8E8E93),
+                  color: _canContinue ? Colors.blue : const Color(0xFF8E8E93),
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -125,7 +125,7 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
                         ? 'Great! You have ${_uploadedPhotos.length} photos uploaded'
                         : 'Upload ${_minPhotos - _uploadedPhotos.length} more photo${_minPhotos - _uploadedPhotos.length > 1 ? 's' : ''} to continue',
                     style: TextStyle(
-                      color: _canContinue ? const Color(0xFF34C759) : const Color(0xFF8E8E93),
+                      color: _canContinue ? Colors.blue : const Color(0xFF8E8E93),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
