@@ -384,8 +384,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(
                             child: SvgPicture.asset(
                               'assets/custom_icon.svg',
-                              width: 20,
-                              height: 20,
+                              width: 28,
+                              height: 28,
                               colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                             ),
                           ),
