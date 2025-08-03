@@ -458,13 +458,13 @@ class _HomeScreenState extends State<HomeScreen> {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
         shape: BoxShape.circle,
       ),
-      child: SvgPicture.asset(
-        'assets/custom_icon.svg',
-        width: 24,
-        height: 24,
-        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+      child: Icon(
+        icon,
+        color: Colors.white,
+        size: 24,
       ),
     );
   }
