@@ -19,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'age': 25,
     'distance': '3.5 Km Away',
     'location': 'Los Angeles, CA',
+    'profession': 'Software Engineer',
     'bio': 'Book lover, coffee enthusiast, and part-time traveler. Looking for someone to share deep conversations and...',
     'images': [
       'assets/girl1a.jpg',
@@ -299,15 +300,16 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Distance
+                // Profession
                 Text(
-                  profileData['distance'],
+                  profileData['profession'],
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 8),
+                
                 
                 // Name and Age
                 Row(
