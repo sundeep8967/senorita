@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'dart:ui';
 import 'dart:async';
 
@@ -159,25 +160,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildModernButton(
-                    icon: Icons.settings,
+                    icon: CupertinoIcons.gear_solid,
                     onTap: () {
                       // Handle settings
                     },
                   ),
-                  _buildModernButton(
-                    icon: Icons.local_fire_department,
-                    onTap: () {
-                      // Handle fire/hot profiles
-                      _showFeedback('Hot profiles!');
-                    },
-                    isFireIcon: true,
-                  ),
-                  _buildModernButton(
-                    icon: Icons.chat_bubble_outline,
-                    onTap: () {
-                      // Handle messages
-                    },
-                  ),
+                  
                 ],
               ),
             ),
@@ -195,25 +183,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: _buildModernDetailsPanel(),
               ),
             ),
-          ),
-          
-          // Modern action buttons
-          Positioned(
-            bottom: 120,
-            left: 0,
-            right: 0,
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: _buildModernActionButtons(),
-            ),
-          ),
-          
-          // Image indicators
-          Positioned(
-            bottom: 30,
-            left: 0,
-            right: 0,
-            child: _buildImageIndicators(),
           ),
         ],
       ),
@@ -339,6 +308,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           
           const SizedBox(height: 16),
+
+          // Modern action buttons
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: _buildModernActionButtons(),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Image indicators
+          _buildImageIndicators(),
+
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -350,81 +332,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Fire button (glassmorphic style) - in place of star
+          // Fire button (glassmorphic style)
           _buildGlassmorphicActionButton(
             icon: Icons.local_fire_department,
             size: 55,
             onTap: () {
-              // Handle fire/hot
               _showFeedback('Hot!');
             },
+            color: Colors.orange,
           ),
           
-          // Chat button - in place of love
-          _buildModernActionButton(
+          // Chat button (glassmorphic style)
+          _buildGlassmorphicActionButton(
             icon: Icons.chat_bubble,
-            color: const Color(0xFF007AFF),
             size: 65,
             onTap: () {
-              // Handle chat
               _showFeedback('Start chat!');
             },
+            color: const Color(0xFF007AFF),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildModernActionButton({
-    required IconData icon,
-    required Color color,
-    required double size,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(size / 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Background circle with color
-            Container(
-              width: size - 10,
-              height: size - 10,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular((size - 10) / 2),
-              ),
-            ),
-            // Icon
-            Icon(
-              icon,
-              color: Colors.white,
-              size: size * 0.4,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  
 
   Widget _buildGlassmorphicActionButton({
     required IconData icon,
     required double size,
     required VoidCallback onTap,
+    required Color color,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -432,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.2),
+          color: color.withOpacity(0.2),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -444,8 +382,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         child: Icon(
           icon,
-          color: Colors.orange[300],
-          size: 24,
+          color: color,
+          size: size * 0.45,
         ),
       ),
     );
