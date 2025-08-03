@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:senorita/screens/profile_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
@@ -435,11 +436,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                         ),
                         
-                        SvgPicture.asset(
-                          'assets/person_icon.svg',
-                          width: 24,
-                          height: 24,
-                          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                            );
+                          },
+                          child: SvgPicture.asset(
+                            'assets/person_icon.svg',
+                            width: 24,
+                            height: 24,
+                            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                          ),
                         ),
                       ],
                     ),
