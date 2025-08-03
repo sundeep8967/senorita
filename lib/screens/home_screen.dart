@@ -393,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Stack(
                           children: [
                             Icon(
-                              Icons.message,
+                              Icons.forum,
                               color: Colors.white.withOpacity(0.6),
                               size: 24,
                             ),
@@ -401,8 +401,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               right: -2,
                               top: -2,
                               child: Container(
-                                width: 20,
-                                height: 20,
+                                width: 16,
+                                height: 16,
                                 decoration: const BoxDecoration(
                                   color: Colors.red,
                                   shape: BoxShape.circle,
@@ -412,7 +412,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     '12',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 10,
+                                      fontSize: 8,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
