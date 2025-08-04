@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:senorita/screens/profile_screen.dart';
+import 'package:senorita/screens/chat_screen.dart';
+import 'package:senorita/screens/notification_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
@@ -391,42 +393,58 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         
                         // Messages with notification
-                        Stack(
-                          children: [
-                            Icon(
-                              Icons.forum,
-                              color: Colors.white.withOpacity(0.6),
-                              size: 24,
-                            ),
-                            Positioned(
-                              right: -2,
-                              top: -2,
-                              child: Container(
-                                width: 16,
-                                height: 16,
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    '12',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const ChatScreen()),
+                            );
+                          },
+                          child: Stack(
+                            children: [
+                              Icon(
+                                Icons.forum,
+                                color: Colors.white.withOpacity(0.6),
+                                size: 24,
+                              ),
+                              Positioned(
+                                right: -2,
+                                top: -2,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      '12',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         
-                        Icon(
-                          Icons.notifications,
-                          color: Colors.white.withOpacity(0.6),
-                          size: 24,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                            );
+                          },
+                          child: Icon(
+                            Icons.notifications,
+                            color: Colors.white.withOpacity(0.6),
+                            size: 24,
+                          ),
                         ),
                         
                         SvgPicture.asset(
