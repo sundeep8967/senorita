@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:senorita/screens/profile_screen.dart';
 import 'package:senorita/screens/chat_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
+import 'package:senorita/screens/choose_cafe_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
@@ -259,7 +260,18 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               children: [
                 
-                _buildActionButton(Icons.favorite_border),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        opaque: false,
+                        pageBuilder: (context, _, __) => const ChooseCafeScreen(),
+                      ),
+                    );
+                  },
+                  child: _buildActionButton(Icons.whatshot),
+                ),
                 const SizedBox(height: 16),
                 Container(
                   width: 8,
@@ -269,10 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildActionButton(Icons.more_horiz),
-                const SizedBox(height: 16),
-                _buildActionButton(Icons.message),
+                
               ],
             ),
           ),
@@ -485,7 +494,7 @@ class _HomeScreenState extends State<HomeScreen> {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.black.withOpacity(0.5),
         shape: BoxShape.circle,
       ),
       child: Icon(
