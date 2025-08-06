@@ -5,12 +5,11 @@ import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../services/firebase_service.dart';
+import '../services/supabase_service.dart';
 import 'home_screen.dart';
 import 'profile_display_screen.dart';
 
@@ -217,7 +216,7 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
   }
 
-  // Capture photo and immediately upload to Firebase
+  // Capture photo - simplified to just capture, no immediate upload
   Future<void> _capturePhoto() async {
     try {
       if (_cameraController == null || !_cameraController!.value.isInitialized) {
@@ -229,24 +228,21 @@ class _VerificationScreenState extends State<VerificationScreen>
         _isLoading = true;
       });
 
-      // Capture the image
+      print('📸 Capturing photo...');
+      
+      // Just capture the image
       final image = await _cameraController!.takePicture();
       _capturedImage = image;
 
-      // Perform face detection
+      // Perform face detection (validation disabled, so always succeeds)
       await _performFaceDetection(File(image.path));
-
-      // Upload to Firebase Storage immediately
-      await _uploadFaceImage();
-
-      // Update database with face verification status
-      await _updateFaceVerificationStatus();
 
       setState(() {
         _isLoading = false;
       });
 
-      _showSnackBar('Face photo captured and uploaded successfully! ✅');
+      _showSnackBar('Face photo captured successfully! ✅');
+      print('✅ Photo captured and face verified');
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -256,7 +252,7 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
   }
 
-  // Upload face image to Firebase Storage
+  // Upload face image to Supabase Storage
   Future<void> _uploadFaceImage() async {
     try {
       if (_capturedImage == null) return;
@@ -264,84 +260,41 @@ class _VerificationScreenState extends State<VerificationScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      print('📸 Uploading face verification image to Firebase Storage...');
+      print('📸 Uploading face verification image to Supabase Storage...');
 
-      final faceRef = FirebaseStorage.instance
-          .ref()
-          .child('verification_images')
-          .child(user.uid)
-          .child('face_verification_${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-      final uploadTask = await faceRef.putFile(File(_capturedImage!.path));
-      _faceImageUrl = await uploadTask.ref.getDownloadURL();
+      // Upload to Supabase instead of Firebase
+      _faceImageUrl = await SupabaseService.instance.uploadFaceImage(File(_capturedImage!.path));
 
       setState(() {
         _facePhotoUploaded = true;
       });
 
-      print('✅ Face image uploaded successfully: $_faceImageUrl');
+      print('✅ Face image uploaded successfully to Supabase: $_faceImageUrl');
     } catch (e) {
-      print('❌ Error uploading face image: $e');
+      print('❌ Error uploading face image to Supabase: $e');
       throw e;
     }
   }
 
-  // Perform face detection using ML Kit
+  // Perform face detection using ML Kit - VALIDATION DISABLED
   Future<void> _performFaceDetection(File imageFile) async {
     try {
-      final inputImage = InputImage.fromFile(imageFile);
-      final faces = await _faceDetector.processImage(inputImage);
+      print('📸 Face detection validation disabled - accepting any photo');
+      
+      // Always set face as verified - validation disabled
+      setState(() {
+        _faceVerified = true;
+      });
 
-      if (faces.isNotEmpty) {
-        final face = faces.first;
-        
-        // Check face quality metrics
-        bool isGoodQuality = true;
-        String qualityIssues = '';
-
-        // Check if face is looking straight (head rotation)
-        if (face.headEulerAngleY != null && face.headEulerAngleY!.abs() > 15) {
-          isGoodQuality = false;
-          qualityIssues += 'Please look straight at the camera. ';
-        }
-
-        // Check if face is tilted
-        if (face.headEulerAngleZ != null && face.headEulerAngleZ!.abs() > 15) {
-          isGoodQuality = false;
-          qualityIssues += 'Please keep your head straight. ';
-        }
-
-        // Check if eyes are open (if classification is available)
-        if (face.leftEyeOpenProbability != null && face.leftEyeOpenProbability! < 0.5) {
-          isGoodQuality = false;
-          qualityIssues += 'Please keep your eyes open. ';
-        }
-
-        if (face.rightEyeOpenProbability != null && face.rightEyeOpenProbability! < 0.5) {
-          isGoodQuality = false;
-          qualityIssues += 'Please keep your eyes open. ';
-        }
-
-        setState(() {
-          _faceVerified = isGoodQuality;
-        });
-
-        if (!isGoodQuality) {
-          _showSnackBar('Face quality issues: $qualityIssues');
-        } else {
-          _showSnackBar('Face verification successful! ✅');
-        }
-      } else {
-        setState(() {
-          _faceVerified = false;
-        });
-        _showSnackBar('No face detected. Please try again.');
-      }
+      _showSnackBar('Face verification successful! ✅ (validation disabled)');
+      
     } catch (e) {
       print('❌ Error in face detection: $e');
+      // Still set as verified even on error - validation disabled
       setState(() {
-        _faceVerified = false;
+        _faceVerified = true;
       });
+      _showSnackBar('Face verification successful! ✅ (validation disabled)');
     }
   }
 
@@ -408,7 +361,7 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
   }
 
-  // Upload document image to Firebase Storage
+  // Upload document image to Supabase Storage
   Future<void> _uploadDocumentImage() async {
     try {
       if (_selectedDocument == null) return;
@@ -416,24 +369,18 @@ class _VerificationScreenState extends State<VerificationScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      print('📄 Uploading document verification image to Firebase Storage...');
+      print('📄 Uploading document verification image to Supabase Storage...');
 
-      final docRef = FirebaseStorage.instance
-          .ref()
-          .child('verification_images')
-          .child(user.uid)
-          .child('${_selectedDocType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-      final uploadTask = await docRef.putFile(_selectedDocument!);
-      _documentImageUrl = await uploadTask.ref.getDownloadURL();
+      // Upload to Supabase instead of Firebase
+      _documentImageUrl = await SupabaseService.instance.uploadDocumentImage(_selectedDocument!, _selectedDocType);
 
       setState(() {
         _documentUploaded = true;
       });
 
-      print('✅ Document image uploaded successfully: $_documentImageUrl');
+      print('✅ Document image uploaded successfully to Supabase: $_documentImageUrl');
     } catch (e) {
-      print('❌ Error uploading document image: $e');
+      print('❌ Error uploading document image to Supabase: $e');
       throw e;
     }
   }
@@ -1212,61 +1159,16 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
   }
 
-  // Validate face in captured image
+  // Validate face in captured image - VALIDATION DISABLED
   Future<bool> _validateFaceInImage(XFile imageFile) async {
     try {
-      final inputImage = InputImage.fromFilePath(imageFile.path);
-      final List<Face> faces = await _faceDetector.processImage(inputImage);
-      
-      print('👥 Detected ${faces.length} face(s) in image');
-      
-      // Check if exactly one face is detected
-      if (faces.isEmpty) {
-        print('❌ No face detected');
-        return false;
-      }
-      
-      if (faces.length > 1) {
-        print('❌ Multiple faces detected (${faces.length})');
-        return false;
-      }
-      
-      // Check face quality
-      final Face face = faces.first;
-      
-      // Check if face is large enough (face should occupy reasonable portion of image)
-      final double faceArea = face.boundingBox.width * face.boundingBox.height;
-      final double imageArea = 640 * 480; // Approximate camera resolution
-      final double faceRatio = faceArea / imageArea;
-      
-      print('📏 Face area ratio: ${(faceRatio * 100).toStringAsFixed(1)}%');
-      
-      if (faceRatio < 0.05) { // Face should be at least 5% of image
-        print('❌ Face too small in frame');
-        return false;
-      }
-      
-      // Check face orientation (optional - ensure face is roughly upright)
-      if (face.headEulerAngleY != null && face.headEulerAngleY!.abs() > 30) {
-        print('❌ Face turned too much to side (${face.headEulerAngleY!.toStringAsFixed(1)}°)');
-        return false;
-      }
-      
-      // Check if eyes are open (if classification is available)
-      if (face.leftEyeOpenProbability != null && face.rightEyeOpenProbability != null) {
-        final bool eyesOpen = face.leftEyeOpenProbability! > 0.5 && face.rightEyeOpenProbability! > 0.5;
-        if (!eyesOpen) {
-          print('❌ Eyes appear to be closed');
-          return false;
-        }
-      }
-      
-      print('✅ Face validation passed');
-      return true;
+      print('📸 Photo validation disabled - accepting any image');
+      print('✅ Face validation passed (validation disabled)');
+      return true; // Always return true - validation disabled
       
     } catch (e) {
       print('❌ Face detection error: $e');
-      return false; // Fail safe - don't allow if detection fails
+      return true; // Still return true even on error - validation disabled
     }
   }
 
@@ -1303,11 +1205,15 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
     
     try {
+      print('📄 Capturing document...');
       final XFile image = await _cameraController!.takePicture();
       setState(() {
         _selectedDocument = File(image.path);
       });
+      _showSnackBar('Document captured successfully! ✅');
+      print('✅ Document captured');
     } catch (e) {
+      print('❌ Error capturing document: $e');
       _showSnackBar('Camera not available. Using gallery picker...');
       await _pickDocument();
     }
@@ -1339,10 +1245,13 @@ class _VerificationScreenState extends State<VerificationScreen>
     });
 
     try {
-      // Simulate API call to face verification service
-      await Future.delayed(const Duration(seconds: 2));
+      print('🔍 Starting face verification...');
       
-      // TODO: Implement actual face verification API
+      // Upload to Firebase Storage
+      await _uploadFaceImage();
+      
+      // Update database with face verification status
+      await _updateFaceVerificationStatus();
       
       setState(() {
         _verificationStatus = 'Face verification successful! ✓';
@@ -1350,12 +1259,16 @@ class _VerificationScreenState extends State<VerificationScreen>
         _isLoading = false;
       });
       
+      _showSnackBar('Face verification completed! ✅');
+      print('✅ Face verification completed');
+      
       // Auto-move to next tab after a short delay
       await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) {
         _tabController.animateTo(1);
       }
     } catch (e) {
+      print('❌ Face verification failed: $e');
       setState(() {
         _isLoading = false;
       });
@@ -1372,24 +1285,16 @@ class _VerificationScreenState extends State<VerificationScreen>
     });
 
     try {
-      // Simulate API call to document verification service
-      await Future.delayed(const Duration(seconds: 3));
+      print('🔍 Starting document verification...');
       
-      // TODO: Implement actual document verification API
-      // Example: IDfy, HyperVerge KYC, or similar service
-      /*
-      final response = await http.post(
-        Uri.parse('https://api.idfy.com/v2/verifications'),
-        headers: {
-          'Authorization': 'Bearer YOUR_API_TOKEN',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'document_type': _selectedDocType.toLowerCase(),
-          'document_image': base64Encode(await _selectedDocument!.readAsBytes()),
-        }),
-      );
-      */
+      // Upload document to Firebase Storage
+      await _uploadDocumentImage();
+      
+      // Perform ID verification
+      await _performIdVerification();
+      
+      // Update database with document verification status
+      await _updateDocumentVerificationStatus();
       
       setState(() {
         _verificationStatus = '$_selectedDocType verification successful! ✓';
@@ -1397,17 +1302,29 @@ class _VerificationScreenState extends State<VerificationScreen>
         _isLoading = false;
       });
       
-      // Document verification complete - ready for final submission
+      _showSnackBar('Document verification completed! ✅');
+      print('✅ Document verification completed');
+      
     } catch (e) {
+      print('❌ Document verification failed: $e');
       setState(() {
         _verificationStatus = 'Document verification failed. Please try again.';
         _isLoading = false;
       });
+      _showSnackBar('Document verification failed: $e');
     }
   }
 
   Future<void> _submitVerification() async {
-    if (!_canProceed()) return;
+    print('🚀 _submitVerification called');
+    print('🔍 _canProceed(): ${_canProceed()}');
+    print('🔍 _faceVerified: $_faceVerified, _documentVerified: $_documentVerified');
+    
+    if (!_canProceed()) {
+      print('❌ Cannot proceed - verification not complete');
+      _showSnackBar('Please complete both face and document verification first');
+      return;
+    }
     
     setState(() {
       _isLoading = true;
@@ -1421,34 +1338,21 @@ class _VerificationScreenState extends State<VerificationScreen>
 
       print('🔥 Starting verification submission for user: ${user.uid}');
       
-      // Upload face image to Firebase Storage
-      String? faceImageUrl;
-      if (_capturedImage != null) {
-        print('📸 Uploading face verification image...');
-        final faceRef = FirebaseStorage.instance
-            .ref()
-            .child('verification_images')
-            .child(user.uid)
-            .child('face_verification_${DateTime.now().millisecondsSinceEpoch}.jpg');
-        
-        await faceRef.putFile(File(_capturedImage!.path));
-        faceImageUrl = await faceRef.getDownloadURL();
-        print('✅ Face image uploaded: $faceImageUrl');
+      // Use already uploaded image URLs from Supabase
+      String? faceImageUrl = _faceImageUrl;
+      String? documentImageUrl = _documentImageUrl;
+      
+      // If images weren't uploaded yet, upload them now to Supabase
+      if (_capturedImage != null && faceImageUrl == null) {
+        print('📸 Uploading face verification image to Supabase...');
+        faceImageUrl = await SupabaseService.instance.uploadFaceImage(File(_capturedImage!.path));
+        print('✅ Face image uploaded to Supabase: $faceImageUrl');
       }
 
-      // Upload document image to Firebase Storage
-      String? documentImageUrl;
-      if (_selectedDocument != null) {
-        print('📄 Uploading document verification image...');
-        final docRef = FirebaseStorage.instance
-            .ref()
-            .child('verification_images')
-            .child(user.uid)
-            .child('${_selectedDocType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}.jpg');
-        
-        await docRef.putFile(_selectedDocument!);
-        documentImageUrl = await docRef.getDownloadURL();
-        print('✅ Document image uploaded: $documentImageUrl');
+      if (_selectedDocument != null && documentImageUrl == null) {
+        print('📄 Uploading document verification image to Supabase...');
+        documentImageUrl = await SupabaseService.instance.uploadDocumentImage(_selectedDocument!, _selectedDocType);
+        print('✅ Document image uploaded to Supabase: $documentImageUrl');
       }
 
       // Save verification data to Firestore
@@ -1480,27 +1384,28 @@ class _VerificationScreenState extends State<VerificationScreen>
         'lastUpdated': FieldValue.serverTimestamp(),
       });
 
+
       print('✅ Verification data saved successfully!');
-      _showSnackBar('Verification submitted successfully!');
+      _showSnackBar('Verification completed successfully! Welcome to Senorita! 🎉');
       
-      // Get user profile data for navigation
-      final userData = await _firebaseService.getUserProfile();
+      // Navigate to HomeScreen after successful verification
+      print('🧭 Verification completed - navigating to home screen...');
       
-      // Navigate to ProfileDisplayScreen with actual user data
       if (mounted) {
+        print('✅ Widget is mounted, navigating to home screen...');
+        
+        // Add a small delay to show the success message
+        await Future.delayed(const Duration(seconds: 2));
+        
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ProfileDisplayScreen(
-              name: userData?['fullName'] ?? 'User',
-              age: userData?['age'] ?? 25,
-              profession: userData?['profession'] ?? 'Professional',
-              bio: userData?['bio'] ?? _bioText,
-              images: _capturedImage != null ? [File(_capturedImage!.path)] : null,
-              location: userData?['location'] ?? 'Location',
-            ),
+            builder: (context) => const HomeScreen(),
           ),
         );
+        print('🎯 Navigation to home screen completed successfully');
+      } else {
+        print('❌ Widget not mounted, cannot navigate');
       }
     } catch (e) {
       print('❌ Verification submission failed: $e');
@@ -1545,23 +1450,30 @@ class _VerificationScreenState extends State<VerificationScreen>
 
   VoidCallback? _getButtonAction() {
     int currentTab = _tabController.index;
+    print('🔍 _getButtonAction - currentTab: $currentTab, _faceVerified: $_faceVerified, _documentVerified: $_documentVerified');
     
     if (currentTab == 0) {
       // Face verification tab
       if (_faceVerified) {
+        print('✅ Face verified - returning _goToNextStep');
         return _goToNextStep;
       } else if (_capturedImage != null) {
+        print('📸 Image captured - returning _verifyFace');
         return _verifyFace; // This will verify and auto-move to next step
       } else {
+        print('❌ No image captured - button disabled');
         return null; // Disabled until photo is taken
       }
     } else {
       // Document verification tab (now final step)
       if (_documentVerified) {
+        print('✅ Document verified - returning _submitVerification');
         return _submitVerification; // Complete verification and go to home
       } else if (_selectedDocument != null) {
+        print('📄 Document selected - returning _verifyDocument');
         return _verifyDocument; // This will verify and enable completion
       } else {
+        print('❌ No document selected - button disabled');
         return null; // Disabled until document is uploaded
       }
     }

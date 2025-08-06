@@ -254,7 +254,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
             const CircularProgressIndicator(color: Color(0xFF007AFF)),
             const SizedBox(height: 16),
             const Text(
-              'Joining Senorita with Google...',
+              'Joining Senorita with Google...', 
               style: TextStyle(
                 color: Color(0xFF1C1C1E),
                 fontWeight: FontWeight.w500,
@@ -270,6 +270,10 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
 
     // Close loading dialog
     Navigator.pop(context);
+
+    // Check verification status
+    final userData = await _firebaseService.getUserProfile();
+    final isVerified = userData?['verificationCompleted'] == true;
 
     // Show success dialog
     showDialog(
@@ -296,7 +300,9 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
               Navigator.pop(context); // Close dialog
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const VerificationScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const VerificationScreen(),
+                ),
               );
             },
             child: const Text(
@@ -323,7 +329,7 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
             const CircularProgressIndicator(color: Color(0xFF007AFF)),
             const SizedBox(height: 16),
             const Text(
-              'Getting your location...',
+              'Getting your location...', 
               style: TextStyle(
                 color: Color(0xFF1C1C1E),
                 fontWeight: FontWeight.w500,

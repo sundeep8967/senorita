@@ -3,20 +3,30 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/verification_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/firebase_service.dart';
+import 'services/supabase_service.dart';
+import 'services/debug_supabase_test.dart';
 import 'dart:async';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('✅ Firebase initialized successfully');
+    await SupabaseService.initialize(); // Add this line
+    print('✅ Firebase and Supabase initialized successfully');
+    
+    // Test Supabase connection
+    final testResult = await SupabaseConnectionTest.testConnection();
+    SupabaseConnectionTest.printTestResults(testResult);
   } catch (e) {
-    print('❌ Firebase initialization failed: $e');
+    print('❌ Initialization failed: $e');
   }
   
   runApp(const MyApp());
@@ -91,13 +101,27 @@ class _AuthWrapperState extends State<AuthWrapper> {
         
         if (userData != null) {
           final onboardingCompleted = userData['onboardingCompleted'] ?? false;
-          print('📝 Onboarding completed: $onboardingCompleted');
+          final verificationCompleted = userData['verificationCompleted'] ?? false;
           
-          if (onboardingCompleted == true) {
-            print('✅ User has completed onboarding - navigating to home screen');
+          print('📝 Onboarding completed: $onboardingCompleted');
+          print('🔐 Verification completed: $verificationCompleted');
+          print('📊 Full user data: $userData');
+          
+          if (onboardingCompleted == true && verificationCompleted == true) {
+            print('✅ User has completed onboarding AND verification - navigating to home screen');
             if (mounted) {
               setState(() {
                 _homeWidget = const HomeScreen();
+                _isLoading = false;
+              });
+            }
+            return;
+          } else if (onboardingCompleted == true && verificationCompleted != true) {
+            print('🔐 User completed onboarding but needs verification - showing verification screen');
+            print('🔐 Verification status: $verificationCompleted (forcing verification screen)');
+            if (mounted) {
+              setState(() {
+                _homeWidget = const VerificationScreen();
                 _isLoading = false;
               });
             }

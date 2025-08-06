@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/firebase_service.dart';
+import 'home_screen.dart';
 
 class GoogleSignInStepScreen extends StatefulWidget {
   final VoidCallback onNext;
@@ -110,7 +111,7 @@ class _GoogleSignInStepScreenState extends State<GoogleSignInStepScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Welcome ${firebaseUser.displayName ?? firebaseUser.email}!')),
+                Expanded(child: Text('Welcome ${firebaseUser.displayName ?? firebaseUser.email}!'))
               ],
             ),
             backgroundColor: Colors.green,
@@ -118,10 +119,21 @@ class _GoogleSignInStepScreenState extends State<GoogleSignInStepScreen> {
           ),
         );
         
-        // Initialize Firebase profile after successful authentication
-        await _initializeFirebaseProfile();
-        
-        widget.onNext();
+        // Check if onboarding is already complete
+        final userData = await _firebaseService.getUserProfile();
+        final onboardingCompleted = userData?['onboardingCompleted'] ?? false;
+
+        if (onboardingCompleted) {
+          print('✅ Onboarding already complete, navigating to home screen');
+          Navigator.pushReplacement(
+            context, 
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // Initialize Firebase profile and proceed with onboarding
+          await _initializeFirebaseProfile();
+          widget.onNext();
+        }
       } else {
         print('❌ Firebase authentication failed - no user returned');
         throw Exception('Firebase authentication failed');
@@ -145,7 +157,7 @@ class _GoogleSignInStepScreenState extends State<GoogleSignInStepScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Welcome ${currentUser.displayName ?? currentUser.email}!')),
+                Expanded(child: Text('Welcome ${currentUser.displayName ?? currentUser.email}!'))
               ],
             ),
             backgroundColor: Colors.green,
@@ -164,7 +176,7 @@ class _GoogleSignInStepScreenState extends State<GoogleSignInStepScreen> {
             children: [
               const Icon(Icons.error_outline, color: Colors.white),
               const SizedBox(width: 8),
-              Expanded(child: Text('Sign-in failed: $error')),
+              Expanded(child: Text('Sign-in failed: $error'))
             ],
           ),
           backgroundColor: Colors.red,
