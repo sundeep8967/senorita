@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:senorita/screens/profile_screen.dart';
+import 'package:senorita/screens/verification_screen.dart';
+
 import 'package:senorita/screens/chat_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
 import 'package:senorita/screens/choose_cafe_screen.dart';
@@ -467,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                              MaterialPageRoute(builder: (context) => const VerificationScreen()),
                             );
                           },
                           child: SvgPicture.asset(

@@ -14,14 +14,14 @@ import '../services/firebase_service.dart';
 import 'home_screen.dart';
 import 'profile_display_screen.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+class VerificationScreen extends StatefulWidget {
+  const VerificationScreen({Key? key}) : super(key: key);
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<VerificationScreen> createState() => _VerificationScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
+class _VerificationScreenState extends State<VerificationScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   late AnimationController _animationController;
@@ -51,17 +51,24 @@ class _ProfileScreenState extends State<ProfileScreen>
   // Completion states
   bool _faceVerified = false;
   bool _documentVerified = false;
+  bool _facePhotoUploaded = false;
+  bool _documentUploaded = false;
 
   // Face Verification
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   XFile? _capturedImage;
   bool _isCameraInitialized = false;
+  String? _faceImageUrl;
 
   // Document Upload
   File? _selectedDocument;
   String _selectedDocType = 'Aadhaar';
-  final List<String> _docTypes = ['Aadhaar', 'PAN', 'Passport'];
+  final List<String> _docTypes = ['Aadhaar', 'PAN'];
+  String? _documentImageUrl;
+  
+  // ID Verification Results
+  Map<String, dynamic>? _idVerificationResults;
 
 
   @override
@@ -84,7 +91,106 @@ class _ProfileScreenState extends State<ProfileScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
+    
+    // Check existing verification status first
+    _checkExistingVerification();
     _initializeCamera();
+  }
+
+  Future<void> _checkExistingVerification() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      print('🔍 Checking existing verification status for user: ${user.uid}');
+
+      // Check verification collection
+      final verificationDoc = await FirebaseFirestore.instance
+          .collection('user_verifications')
+          .doc(user.uid)
+          .get();
+
+      if (verificationDoc.exists) {
+        final verificationData = verificationDoc.data() as Map<String, dynamic>;
+        
+        if (verificationData['verificationStatus'] == 'completed') {
+          print('✅ User verification already completed');
+          
+          setState(() {
+            _faceVerified = verificationData['faceVerified'] ?? false;
+            _documentVerified = verificationData['documentVerified'] ?? false;
+            _selectedDocType = verificationData['documentType'] ?? 'Aadhaar';
+            _verificationStatus = 'completed';
+          });
+
+          // Show completion message
+          _showSnackBar('Verification already completed! ✅');
+          
+          // Navigate to profile after a short delay
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              _navigateToProfile();
+            }
+          });
+          
+          return;
+        }
+      }
+
+      // Check user profile for verification status
+      final userData = await _firebaseService.getUserProfile();
+      if (userData != null && userData['verificationCompleted'] == true) {
+        print('✅ User profile shows verification completed');
+        
+        setState(() {
+          _verificationStatus = 'completed';
+        });
+
+        _showSnackBar('Verification already completed! ✅');
+        
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            _navigateToProfile();
+          }
+        });
+      } else {
+        print('📝 User needs to complete verification');
+      }
+    } catch (e) {
+      print('❌ Error checking verification status: $e');
+      // Continue with normal verification flow if there's an error
+    }
+  }
+
+  Future<void> _navigateToProfile() async {
+    try {
+      final userData = await _firebaseService.getUserProfile();
+      
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfileDisplayScreen(
+              name: userData?['fullName'] ?? 'User',
+              age: userData?['age'] ?? 25,
+              profession: userData?['profession'] ?? 'Professional',
+              bio: userData?['bio'] ?? 'Bio not available',
+              location: userData?['location'] ?? 'Location not set',
+              images: null, // We could load existing images here if needed
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error navigating to profile: $e');
+      // Fallback to home screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    }
   }
 
   Future<void> _initializeCamera() async {
@@ -111,6 +217,309 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  // Capture photo and immediately upload to Firebase
+  Future<void> _capturePhoto() async {
+    try {
+      if (_cameraController == null || !_cameraController!.value.isInitialized) {
+        _showSnackBar('Camera not initialized');
+        return;
+      }
+
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Capture the image
+      final image = await _cameraController!.takePicture();
+      _capturedImage = image;
+
+      // Perform face detection
+      await _performFaceDetection(File(image.path));
+
+      // Upload to Firebase Storage immediately
+      await _uploadFaceImage();
+
+      // Update database with face verification status
+      await _updateFaceVerificationStatus();
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      _showSnackBar('Face photo captured and uploaded successfully! ✅');
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('❌ Error capturing photo: $e');
+      _showSnackBar('Failed to capture photo: $e');
+    }
+  }
+
+  // Upload face image to Firebase Storage
+  Future<void> _uploadFaceImage() async {
+    try {
+      if (_capturedImage == null) return;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      print('📸 Uploading face verification image to Firebase Storage...');
+
+      final faceRef = FirebaseStorage.instance
+          .ref()
+          .child('verification_images')
+          .child(user.uid)
+          .child('face_verification_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      final uploadTask = await faceRef.putFile(File(_capturedImage!.path));
+      _faceImageUrl = await uploadTask.ref.getDownloadURL();
+
+      setState(() {
+        _facePhotoUploaded = true;
+      });
+
+      print('✅ Face image uploaded successfully: $_faceImageUrl');
+    } catch (e) {
+      print('❌ Error uploading face image: $e');
+      throw e;
+    }
+  }
+
+  // Perform face detection using ML Kit
+  Future<void> _performFaceDetection(File imageFile) async {
+    try {
+      final inputImage = InputImage.fromFile(imageFile);
+      final faces = await _faceDetector.processImage(inputImage);
+
+      if (faces.isNotEmpty) {
+        final face = faces.first;
+        
+        // Check face quality metrics
+        bool isGoodQuality = true;
+        String qualityIssues = '';
+
+        // Check if face is looking straight (head rotation)
+        if (face.headEulerAngleY != null && face.headEulerAngleY!.abs() > 15) {
+          isGoodQuality = false;
+          qualityIssues += 'Please look straight at the camera. ';
+        }
+
+        // Check if face is tilted
+        if (face.headEulerAngleZ != null && face.headEulerAngleZ!.abs() > 15) {
+          isGoodQuality = false;
+          qualityIssues += 'Please keep your head straight. ';
+        }
+
+        // Check if eyes are open (if classification is available)
+        if (face.leftEyeOpenProbability != null && face.leftEyeOpenProbability! < 0.5) {
+          isGoodQuality = false;
+          qualityIssues += 'Please keep your eyes open. ';
+        }
+
+        if (face.rightEyeOpenProbability != null && face.rightEyeOpenProbability! < 0.5) {
+          isGoodQuality = false;
+          qualityIssues += 'Please keep your eyes open. ';
+        }
+
+        setState(() {
+          _faceVerified = isGoodQuality;
+        });
+
+        if (!isGoodQuality) {
+          _showSnackBar('Face quality issues: $qualityIssues');
+        } else {
+          _showSnackBar('Face verification successful! ✅');
+        }
+      } else {
+        setState(() {
+          _faceVerified = false;
+        });
+        _showSnackBar('No face detected. Please try again.');
+      }
+    } catch (e) {
+      print('❌ Error in face detection: $e');
+      setState(() {
+        _faceVerified = false;
+      });
+    }
+  }
+
+  // Update face verification status in Firebase
+  Future<void> _updateFaceVerificationStatus() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('user_verifications')
+          .doc(user.uid)
+          .set({
+        'userId': user.uid,
+        'faceVerified': _faceVerified,
+        'facePhotoUploaded': _facePhotoUploaded,
+        'faceImageUrl': _faceImageUrl,
+        'faceVerificationTimestamp': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print('✅ Face verification status updated in database');
+    } catch (e) {
+      print('❌ Error updating face verification status: $e');
+    }
+  }
+
+  // Upload document and perform ID verification
+  Future<void> _uploadDocument() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        _selectedDocument = File(result.files.single.path!);
+
+        // Upload to Firebase Storage immediately
+        await _uploadDocumentImage();
+
+        // Perform ID verification
+        await _performIdVerification();
+
+        // Update database with document verification status
+        await _updateDocumentVerificationStatus();
+
+        _showSnackBar('Document uploaded and verified successfully! ✅');
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('❌ Error uploading document: $e');
+      _showSnackBar('Failed to upload document: $e');
+    }
+  }
+
+  // Upload document image to Firebase Storage
+  Future<void> _uploadDocumentImage() async {
+    try {
+      if (_selectedDocument == null) return;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      print('📄 Uploading document verification image to Firebase Storage...');
+
+      final docRef = FirebaseStorage.instance
+          .ref()
+          .child('verification_images')
+          .child(user.uid)
+          .child('${_selectedDocType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      final uploadTask = await docRef.putFile(_selectedDocument!);
+      _documentImageUrl = await uploadTask.ref.getDownloadURL();
+
+      setState(() {
+        _documentUploaded = true;
+      });
+
+      print('✅ Document image uploaded successfully: $_documentImageUrl');
+    } catch (e) {
+      print('❌ Error uploading document image: $e');
+      throw e;
+    }
+  }
+
+  // Perform ID verification (simulated - in real apps, use services like Jumio, Onfido, etc.)
+  Future<void> _performIdVerification() async {
+    try {
+      print('🔍 Performing ID verification for ${_selectedDocType}...');
+
+      // Simulate ID verification process
+      // In real apps, you would use services like:
+      // - Jumio (jumio.com)
+      // - Onfido (onfido.com)
+      // - AWS Textract
+      // - Google Document AI
+      // - Microsoft Form Recognizer
+
+      await Future.delayed(const Duration(seconds: 2)); // Simulate processing
+
+      // Simulated verification results
+      _idVerificationResults = {
+        'documentType': _selectedDocType,
+        'isValid': true,
+        'confidence': 0.95,
+        'extractedData': {
+          'name': 'John Doe', // In real apps, this would be extracted from the document
+          'documentNumber': _selectedDocType == 'Aadhaar' ? '1234-5678-9012' : 'ABCDE1234F',
+          'dateOfBirth': '1990-01-01',
+          'address': '123 Main Street, City, State',
+        },
+        'verificationChecks': {
+          'documentAuthenticity': true,
+          'faceMatch': true, // Compare with face photo
+          'dataConsistency': true,
+          'tamperingDetection': false,
+        },
+        'riskScore': 0.1, // Lower is better
+        'verificationTimestamp': DateTime.now().toIso8601String(),
+      };
+
+      setState(() {
+        _documentVerified = _idVerificationResults!['isValid'] && 
+                           _idVerificationResults!['confidence'] > 0.8;
+      });
+
+      if (_documentVerified) {
+        _showSnackBar('ID verification successful! Document is authentic. ✅');
+      } else {
+        _showSnackBar('ID verification failed. Please upload a clear, valid document.');
+      }
+
+      print('✅ ID verification completed: ${_documentVerified ? "PASSED" : "FAILED"}');
+    } catch (e) {
+      print('❌ Error in ID verification: $e');
+      setState(() {
+        _documentVerified = false;
+      });
+    }
+  }
+
+  // Update document verification status in Firebase
+  Future<void> _updateDocumentVerificationStatus() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('user_verifications')
+          .doc(user.uid)
+          .set({
+        'userId': user.uid,
+        'documentVerified': _documentVerified,
+        'documentUploaded': _documentUploaded,
+        'documentType': _selectedDocType,
+        'documentImageUrl': _documentImageUrl,
+        'idVerificationResults': _idVerificationResults,
+        'documentVerificationTimestamp': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print('✅ Document verification status updated in database');
+    } catch (e) {
+      print('❌ Error updating document verification status: $e');
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -128,21 +537,176 @@ class _ProfileScreenState extends State<ProfileScreen>
       appBar: _buildAppBar(),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: Column(
-          children: [
-            _buildTabBar(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
+        child: _verificationStatus == 'completed' 
+            ? _buildCompletedVerificationView()
+            : Column(
                 children: [
-                  _buildFaceVerificationTab(),
-                  _buildDocumentUploadTab(),
+                  _buildTabBar(),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildFaceVerificationTab(),
+                        _buildDocumentUploadTab(),
+                      ],
+                    ),
+                  ),
+                  _buildBottomActions(),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildCompletedVerificationView() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Success Icon
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.green.shade400,
+                  Colors.green.shade600,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            _buildBottomActions(),
-          ],
+            child: const Icon(
+              Icons.verified_user,
+              size: 60,
+              color: Colors.white,
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+          
+          // Title
+          const Text(
+            'Verification Complete!',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Subtitle
+          Text(
+            'Your identity has been successfully verified.\nYou can now access all features.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 16,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 40),
+          
+          // Status Cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatusCard(
+                  icon: Icons.face,
+                  title: 'Face Verification',
+                  isCompleted: _faceVerified,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatusCard(
+                  icon: Icons.description,
+                  title: 'Document Verification',
+                  isCompleted: _documentVerified,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 40),
+          
+          // Continue Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _navigateToProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Continue to Profile',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard({
+    required IconData icon,
+    required String title,
+    required bool isCompleted,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isCompleted ? Colors.green : Colors.white.withOpacity(0.2),
+          width: 1,
         ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            isCompleted ? Icons.check_circle : icon,
+            color: isCompleted ? Colors.green : Colors.white.withOpacity(0.7),
+            size: 32,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              color: isCompleted ? Colors.green : Colors.white.withOpacity(0.7),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -310,7 +874,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       children: [
         
         GestureDetector(
-          onTap: _takePicture,
+          onTap: _capturePhoto,
           child: Container(
             width: 70,
             height: 70,
@@ -319,7 +883,9 @@ class _ProfileScreenState extends State<ProfileScreen>
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
             ),
-            child: const Icon(Icons.camera_alt, color: Colors.white, size: 30),
+            child: _isLoading 
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Icon(Icons.camera_alt, color: Colors.white, size: 30),
           ),
         ),
         

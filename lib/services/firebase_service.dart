@@ -20,16 +20,33 @@ class FirebaseService {
     if (currentUserId == null) return;
 
     try {
-      await _firestore.collection('users').doc(currentUserId).set({
-        'userId': currentUserId,
-        'createdAt': FieldValue.serverTimestamp(),
-        'onboardingStarted': true,
-        'onboardingCompleted': false,
-        'profileCompletionPercentage': 0,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // First check if user profile already exists
+      final userDoc = await _firestore.collection('users').doc(currentUserId).get();
       
-      print('✅ User profile initialized for: $currentUserId');
+      if (userDoc.exists) {
+        print('✅ User profile already exists for: $currentUserId');
+        
+        // Only update basic fields, preserve onboarding status
+        await _firestore.collection('users').doc(currentUserId).update({
+          'lastUpdated': FieldValue.serverTimestamp(),
+          'lastSignIn': FieldValue.serverTimestamp(),
+        });
+        
+        print('✅ User profile updated with last sign-in time');
+      } else {
+        // Create new profile only for completely new users
+        await _firestore.collection('users').doc(currentUserId).set({
+          'userId': currentUserId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'onboardingStarted': true,
+          'onboardingCompleted': false,
+          'profileCompletionPercentage': 0,
+          'lastUpdated': FieldValue.serverTimestamp(),
+          'lastSignIn': FieldValue.serverTimestamp(),
+        });
+        
+        print('✅ New user profile created for: $currentUserId');
+      }
     } catch (e) {
       print('❌ Error initializing user profile: $e');
       rethrow;
