@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../services/firebase_service.dart';
 
 class GoogleSignInStepScreen extends StatefulWidget {
   final VoidCallback onNext;
@@ -14,31 +17,165 @@ class GoogleSignInStepScreen extends StatefulWidget {
 
 class _GoogleSignInStepScreenState extends State<GoogleSignInStepScreen> {
   bool _isSigningIn = false;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseService _firebaseService = FirebaseService();
+
+  // Initialize Firebase profile after authentication
+  Future<void> _initializeFirebaseProfile() async {
+    try {
+      print('🔥 Initializing Firebase profile after authentication...');
+      await _firebaseService.initializeUserProfile();
+      print('✅ Firebase profile initialized successfully');
+    } catch (e) {
+      print('❌ Error initializing Firebase profile: $e');
+      // Show error but don't block the flow
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Warning: Profile initialization failed: $e'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   void _signInWithGoogle() async {
     setState(() {
       _isSigningIn = true;
     });
 
-    // Simulate Google Sign-In process
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      print('🔐 Starting Google Sign-in process...');
+      
+      // Step 1: Google Sign-in
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        print('❌ Google Sign-in cancelled by user');
+        setState(() {
+          _isSigningIn = false;
+        });
+        return;
+      }
+      
+      print('✅ Google Sign-in successful: ${googleUser.email}');
+      print('👤 Google User ID: ${googleUser.id}');
+      print('👤 Google Display Name: ${googleUser.displayName}');
+      
+      // Step 2: Get Google Auth details
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      print('🔑 Google Auth Token received');
+      
+      // Step 3: Create Firebase credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      print('🎫 Firebase credential created');
+      
+      // Step 4: Sign in to Firebase
+      print('🔥 Signing in to Firebase...');
+      UserCredential? userCredential;
+      User? firebaseUser;
+      
+      try {
+        userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+        firebaseUser = userCredential.user;
+        print('✅ Firebase sign-in completed');
+      } catch (firebaseError) {
+        print('❌ Firebase sign-in error: $firebaseError');
+        
+        // Try to get current user if sign-in failed but user might already be signed in
+        firebaseUser = FirebaseAuth.instance.currentUser;
+        if (firebaseUser != null) {
+          print('✅ Found existing Firebase user: ${firebaseUser.uid}');
+        } else {
+          throw firebaseError;
+        }
+      }
+      
+      if (firebaseUser != null) {
+        print('🔥 Firebase authentication successful!');
+        print('🆔 Firebase User ID: ${firebaseUser.uid}');
+        print('📧 Firebase Email: ${firebaseUser.email}');
+        print('👤 Firebase Display Name: ${firebaseUser.displayName}');
+        print('📸 Firebase Photo URL: ${firebaseUser.photoURL}');
+        print('✅ Is Email Verified: ${firebaseUser.emailVerified}');
+        print('📅 Creation Time: ${firebaseUser.metadata.creationTime}');
+        print('📅 Last Sign In: ${firebaseUser.metadata.lastSignInTime}');
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Welcome ${firebaseUser.displayName ?? firebaseUser.email}!')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        
+        // Initialize Firebase profile after successful authentication
+        await _initializeFirebaseProfile();
+        
+        widget.onNext();
+      } else {
+        print('❌ Firebase authentication failed - no user returned');
+        throw Exception('Firebase authentication failed');
+      }
+      
+    } catch (error) {
+      print('❌ Google Sign-in error: $error');
+      
+      // Check if user is actually authenticated despite the error
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        print('✅ User is actually authenticated despite error: ${currentUser.uid}');
+        
+        // Initialize Firebase profile
+        await _initializeFirebaseProfile();
+        
+        // Show success and proceed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Welcome ${currentUser.displayName ?? currentUser.email}!')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        
+        widget.onNext();
+        return;
+      }
+      
+      // Handle actual sign-in error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Sign-in failed: $error')),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
 
     setState(() {
       _isSigningIn = false;
     });
-
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Successfully signed in with Google!'),
-        backgroundColor: Colors.blue,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-
-    // Proceed to next step
-    widget.onNext();
   }
 
   @override

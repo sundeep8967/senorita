@@ -69,17 +69,18 @@ class _BioStepScreenState extends State<BioStepScreen> {
                 maxLines: null,
                 maxLength: _maxBioLength,
                 expands: true,
+                textAlignVertical: TextAlignVertical.top,
                 style: const TextStyle(
                   color: Color(0xFF1C1C1E),
                   fontSize: 16,
-                  height: 1.5,
+                  height: 1.4,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Share your interests, hobbies, what you\'re looking for...\n\nFor example:\n• I love hiking and photography\n• Coffee enthusiast and book lover\n• Looking for meaningful connections\n• Passionate about travel and new experiences',
                   hintStyle: const TextStyle(
                     color: Color(0xFFC7C7CC),
-                    fontSize: 16,
-                    height: 1.5,
+                    fontSize: 15,
+                    height: 1.4,
                   ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(20),
@@ -89,6 +90,8 @@ class _BioStepScreenState extends State<BioStepScreen> {
                         : const Color(0xFF8E8E93),
                     fontSize: 14,
                   ),
+                  alignLabelWithHint: true,
+                  isCollapsed: false,
                 ),
                 textCapitalization: TextCapitalization.sentences,
                 onChanged: (text) {
