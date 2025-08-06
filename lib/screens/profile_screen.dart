@@ -5,6 +5,12 @@ import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import '../services/firebase_service.dart';
 import 'home_screen.dart';
 import 'profile_display_screen.dart';
 
@@ -28,6 +34,19 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool _isLoading = false;
   String _bioText = '';
   String _verificationStatus = '';
+  
+  // Firebase service
+  final FirebaseService _firebaseService = FirebaseService();
+  
+  // Face detection
+  final FaceDetector _faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
+      enableContours: true,
+      enableLandmarks: true,
+      enableClassification: true,
+      enableTracking: true,
+    ),
+  );
 
   // Completion states
   bool _faceVerified = false;
@@ -49,6 +68,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Add listener to update UI when tab changes
+    _tabController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+    
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -90,6 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     _animationController.dispose();
     _bioController.dispose();
     _cameraController?.dispose();
+    _faceDetector.close();
     super.dispose();
   }
 
@@ -399,7 +427,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           
           const SizedBox(height: 30),
           
-          // Document upload area
+          // Document camera area
           Expanded(
             child: _selectedDocument != null
                 ? _buildDocumentPreview()
@@ -407,6 +435,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           
           const SizedBox(height: 20),
+          if (_selectedDocument == null) _buildDocumentCameraControls(),
           if (_selectedDocument != null) _buildDocumentActions(),
         ],
       ),
@@ -414,63 +443,85 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildDocumentUploadArea() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          style: BorderStyle.solid,
-          width: 2,
+    return _buildDocumentCameraView();
+  }
+
+  Widget _buildDocumentCameraView() {
+    if (!_isCameraInitialized || _cameraController == null) {
+      return Container(
+        height: 400,
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(20),
         ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF007AFF)),
+        ),
+      );
+    }
+
+    return Container(
+      height: 400,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      clipBehavior: Clip.hardEdge,
+      child: Stack(
         children: [
-          Icon(
-            Icons.credit_card,
-            size: 80,
-            color: Colors.white.withOpacity(0.6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: CameraPreview(_cameraController!),
           ),
-          const SizedBox(height: 20),
-          Text(
-            'Capture your $_selectedDocType',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 30),
-          
-          // Camera button only
-          GestureDetector(
-            onTap: _captureDocument,
+          // Document guide overlay
+          Center(
             child: Container(
-              width: 200,
-              height: 60,
+              width: 300,
+              height: 200,
               decoration: BoxDecoration(
-                color: const Color(0xFF007AFF),
-                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white, width: 2),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.camera_alt, color: Colors.white, size: 24),
-                  SizedBox(width: 12),
-                  Text('Capture Document', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                  Icon(
+                    Icons.credit_card,
+                    color: Colors.white.withOpacity(0.7),
+                    size: 40,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Position $_selectedDocType here',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          
-          const SizedBox(height: 15),
-          Text(
-            'Live capture ensures authenticity',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
-              fontSize: 14,
+          // Instructions at top
+          Positioned(
+            top: 20,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Position your $_selectedDocType within the frame',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ],
@@ -495,6 +546,27 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  Widget _buildDocumentCameraControls() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        GestureDetector(
+          onTap: _captureDocument,
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: const Color(0xFF007AFF),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: const Icon(Icons.camera_alt, color: Colors.white, size: 30),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDocumentActions() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -509,7 +581,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             backgroundColor: Colors.grey[800],
             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
           ),
-          child: const Text('Remove', style: TextStyle(color: Colors.white)),
+          child: const Text('Retake', style: TextStyle(color: Colors.white)),
         ),
         ElevatedButton(
           onPressed: _verifyDocument,
@@ -540,14 +612,95 @@ class _ProfileScreenState extends State<ProfileScreen>
       return;
     }
     
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
+      print('📸 Taking picture...');
       final XFile image = await _cameraController!.takePicture();
-      setState(() {
-        _capturedImage = image;
-      });
+      
+      // Validate face in the captured image
+      print('🔍 Validating face in captured image...');
+      final bool isValidFace = await _validateFaceInImage(image);
+      
+      if (isValidFace) {
+        setState(() {
+          _capturedImage = image;
+          _isLoading = false;
+        });
+        _showSnackBar('✅ Face detected successfully!');
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        // Don't save the image if face validation fails
+        _showSnackBar('❌ Please ensure your face is clearly visible and you\'re the only person in the frame');
+      }
     } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       _showSnackBar('Camera not available. Using gallery picker...');
       await _pickImageFromGallery();
+    }
+  }
+
+  // Validate face in captured image
+  Future<bool> _validateFaceInImage(XFile imageFile) async {
+    try {
+      final inputImage = InputImage.fromFilePath(imageFile.path);
+      final List<Face> faces = await _faceDetector.processImage(inputImage);
+      
+      print('👥 Detected ${faces.length} face(s) in image');
+      
+      // Check if exactly one face is detected
+      if (faces.isEmpty) {
+        print('❌ No face detected');
+        return false;
+      }
+      
+      if (faces.length > 1) {
+        print('❌ Multiple faces detected (${faces.length})');
+        return false;
+      }
+      
+      // Check face quality
+      final Face face = faces.first;
+      
+      // Check if face is large enough (face should occupy reasonable portion of image)
+      final double faceArea = face.boundingBox.width * face.boundingBox.height;
+      final double imageArea = 640 * 480; // Approximate camera resolution
+      final double faceRatio = faceArea / imageArea;
+      
+      print('📏 Face area ratio: ${(faceRatio * 100).toStringAsFixed(1)}%');
+      
+      if (faceRatio < 0.05) { // Face should be at least 5% of image
+        print('❌ Face too small in frame');
+        return false;
+      }
+      
+      // Check face orientation (optional - ensure face is roughly upright)
+      if (face.headEulerAngleY != null && face.headEulerAngleY!.abs() > 30) {
+        print('❌ Face turned too much to side (${face.headEulerAngleY!.toStringAsFixed(1)}°)');
+        return false;
+      }
+      
+      // Check if eyes are open (if classification is available)
+      if (face.leftEyeOpenProbability != null && face.rightEyeOpenProbability != null) {
+        final bool eyesOpen = face.leftEyeOpenProbability! > 0.5 && face.rightEyeOpenProbability! > 0.5;
+        if (!eyesOpen) {
+          print('❌ Eyes appear to be closed');
+          return false;
+        }
+      }
+      
+      print('✅ Face validation passed');
+      return true;
+      
+    } catch (e) {
+      print('❌ Face detection error: $e');
+      return false; // Fail safe - don't allow if detection fails
     }
   }
 
@@ -577,23 +730,18 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // Document Functions
   Future<void> _captureDocument() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      // Fallback to gallery picker if camera not available (emulator)
+      await _pickDocument();
+      return;
+    }
+    
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.rear, // Use back camera
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 90, // Higher quality for documents
-      );
-      
-      if (image != null) {
-        setState(() {
-          _selectedDocument = File(image.path);
-        });
-      }
+      final XFile image = await _cameraController!.takePicture();
+      setState(() {
+        _selectedDocument = File(image.path);
+      });
     } catch (e) {
-      // Fallback to gallery if camera fails (emulator)
       _showSnackBar('Camera not available. Using gallery picker...');
       await _pickDocument();
     }
@@ -700,43 +848,97 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
 
     try {
-      // Submit all verification data to your backend
-      await Future.delayed(const Duration(seconds: 2));
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      print('🔥 Starting verification submission for user: ${user.uid}');
       
-      // TODO: Implement backend submission
-      /*
-      final response = await http.post(
-        Uri.parse('https://your-api.com/submit-verification'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'face_image': base64Encode(await _capturedImage!.readAsBytes()),
-          'document_type': _selectedDocType,
-          'document_image': base64Encode(await _selectedDocument!.readAsBytes()),
-          'bio': _bioText,
-        }),
-      );
-      */
-      
+      // Upload face image to Firebase Storage
+      String? faceImageUrl;
+      if (_capturedImage != null) {
+        print('📸 Uploading face verification image...');
+        final faceRef = FirebaseStorage.instance
+            .ref()
+            .child('verification_images')
+            .child(user.uid)
+            .child('face_verification_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        
+        await faceRef.putFile(File(_capturedImage!.path));
+        faceImageUrl = await faceRef.getDownloadURL();
+        print('✅ Face image uploaded: $faceImageUrl');
+      }
+
+      // Upload document image to Firebase Storage
+      String? documentImageUrl;
+      if (_selectedDocument != null) {
+        print('📄 Uploading document verification image...');
+        final docRef = FirebaseStorage.instance
+            .ref()
+            .child('verification_images')
+            .child(user.uid)
+            .child('${_selectedDocType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        
+        await docRef.putFile(_selectedDocument!);
+        documentImageUrl = await docRef.getDownloadURL();
+        print('✅ Document image uploaded: $documentImageUrl');
+      }
+
+      // Save verification data to Firestore
+      print('💾 Saving verification data to Firestore...');
+      await FirebaseFirestore.instance
+          .collection('user_verifications')
+          .doc(user.uid)
+          .set({
+        'userId': user.uid,
+        'faceVerified': _faceVerified,
+        'documentVerified': _documentVerified,
+        'faceImageUrl': faceImageUrl,
+        'documentType': _selectedDocType,
+        'documentImageUrl': documentImageUrl,
+        'verificationStatus': 'completed',
+        'submittedAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      // Update user profile with verification status
+      print('👤 Updating user profile verification status...');
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+        'isVerified': true,
+        'verificationCompleted': true,
+        'verificationCompletedAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      print('✅ Verification data saved successfully!');
       _showSnackBar('Verification submitted successfully!');
       
-      // Navigate to ProfileDisplayScreen with collected data
-     if (mounted) {
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ProfileDisplayScreen(
-        name: 'Sophia Williams', // Replace with actual collected name
-        age: 25, // Replace with actual collected age
-        profession: 'Software Engineer', // Replace with actual collected profession
-        bio: _bioText, // Pass the collected bio
-        images: _capturedImage != null ? [File(_capturedImage!.path)] : null, // Convert to list
-        location: 'Bangalore, KA', // Add location parameter
-      ),
-    ),
-  );
-}
+      // Get user profile data for navigation
+      final userData = await _firebaseService.getUserProfile();
+      
+      // Navigate to ProfileDisplayScreen with actual user data
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfileDisplayScreen(
+              name: userData?['fullName'] ?? 'User',
+              age: userData?['age'] ?? 25,
+              profession: userData?['profession'] ?? 'Professional',
+              bio: userData?['bio'] ?? _bioText,
+              images: _capturedImage != null ? [File(_capturedImage!.path)] : null,
+              location: userData?['location'] ?? 'Location',
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      _showSnackBar('Submission failed. Please try again.');
+      print('❌ Verification submission failed: $e');
+      _showSnackBar('Submission failed: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -752,13 +954,26 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   String _getButtonText() {
     int currentTab = _tabController.index;
+    print('🔍 Current tab: $currentTab, Face verified: $_faceVerified, Doc verified: $_documentVerified');
     
     if (currentTab == 0) {
       // Face verification tab
-      return _faceVerified ? 'Go to Next Step' : (_capturedImage != null ? 'Complete Face Verification' : 'Take Photo First');
+      if (_faceVerified) {
+        return 'Go to ID Verify';
+      } else if (_capturedImage != null) {
+        return 'Verify Face';
+      } else {
+        return 'Take Selfie';
+      }
     } else {
-      // Document verification tab (now tab 1, final step)
-      return _documentVerified ? 'Complete Verification' : (_selectedDocument != null ? 'Complete ID Verification' : 'Verify ID');
+      // Document verification tab (tab 1, final step)
+      if (_documentVerified) {
+        return 'Complete Verification';
+      } else if (_selectedDocument != null) {
+        return 'Verify Document';
+      } else {
+        return 'Capture ID';
+      }
     }
   }
 
@@ -790,6 +1005,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     int currentTab = _tabController.index;
     if (currentTab < 1) {
       _tabController.animateTo(currentTab + 1);
+      // Force rebuild to update button text
+      setState(() {});
     }
   }
 

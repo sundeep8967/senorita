@@ -100,6 +100,9 @@ dependencies:
   # Video Calls
   agora_rtc_engine: ^6.3.0
   
+  # Face Detection
+  google_mlkit_face_detection: ^0.10.0
+  
   # Utils
   intl: ^0.18.1
   uuid: ^4.1.0

@@ -46,7 +46,52 @@ class _SenoritaApplicationScreenState extends State<SenoritaApplicationScreen> {
   @override
   void initState() {
     super.initState();
-    // Don't initialize Firebase profile here - wait until after Google Sign-in
+    _checkUserOnboardingStatus();
+  }
+
+  // Check if user has already completed onboarding
+  Future<void> _checkUserOnboardingStatus() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        print('🔍 Checking onboarding status for user: ${user.uid}');
+        
+        // Get user profile from Firebase
+        final userData = await _firebaseService.getUserProfile();
+        
+        if (userData != null && userData['onboardingCompleted'] == true) {
+          print('✅ User has already completed onboarding');
+          
+          // Show message and navigate directly to profile
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Welcome back! Your profile is already complete.')),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          
+          // Navigate directly to profile screen
+          await Future.delayed(const Duration(seconds: 1));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+          );
+          return;
+        } else {
+          print('📝 User needs to complete onboarding');
+        }
+      }
+    } catch (e) {
+      print('❌ Error checking onboarding status: $e');
+      // Continue with normal onboarding flow if there's an error
+    }
   }
 
   @override
