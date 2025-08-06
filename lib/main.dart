@@ -105,7 +105,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
           
           print('📝 Onboarding completed: $onboardingCompleted');
           print('🔐 Verification completed: $verificationCompleted');
-          print('📊 Full user data: $userData');
           
           if (onboardingCompleted == true && verificationCompleted == true) {
             print('✅ User has completed onboarding AND verification - navigating to home screen');

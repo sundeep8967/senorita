@@ -103,40 +103,7 @@ class _VerificationScreenState extends State<VerificationScreen>
 
       print('🔍 Checking existing verification status for user: ${user.uid}');
 
-      // Check verification collection
-      final verificationDoc = await FirebaseFirestore.instance
-          .collection('user_verifications')
-          .doc(user.uid)
-          .get();
-
-      if (verificationDoc.exists) {
-        final verificationData = verificationDoc.data() as Map<String, dynamic>;
-        
-        if (verificationData['verificationStatus'] == 'completed') {
-          print('✅ User verification already completed');
-          
-          setState(() {
-            _faceVerified = verificationData['faceVerified'] ?? false;
-            _documentVerified = verificationData['documentVerified'] ?? false;
-            _selectedDocType = verificationData['documentType'] ?? 'Aadhaar';
-            _verificationStatus = 'completed';
-          });
-
-          // Show completion message
-          _showSnackBar('Verification already completed! ✅');
-          
-          // Navigate to profile after a short delay
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) {
-              _navigateToProfile();
-            }
-          });
-          
-          return;
-        }
-      }
-
-      // Check user profile for verification status
+      // Only check user profile for verification status (skip Firestore collection to avoid permission issues)
       final userData = await _firebaseService.getUserProfile();
       if (userData != null && userData['verificationCompleted'] == true) {
         print('✅ User profile shows verification completed');

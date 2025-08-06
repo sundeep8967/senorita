@@ -124,7 +124,7 @@ class _GoogleSignInStepScreenState extends State<GoogleSignInStepScreen> {
         final onboardingCompleted = userData?['onboardingCompleted'] ?? false;
 
         if (onboardingCompleted) {
-          print('✅ Onboarding already complete, navigating to home screen');
+          print('✅ Onboarding already complete, checking verification status...');
           Navigator.pushReplacement(
             context, 
             MaterialPageRoute(builder: (context) => const HomeScreen()),
