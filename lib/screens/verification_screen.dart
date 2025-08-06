@@ -1,9 +1,5 @@
-
-
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,13 +21,9 @@ class _VerificationScreenState extends State<VerificationScreen>
   late TabController _tabController;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-
-  // Controllers
-  final TextEditingController _bioController = TextEditingController();
-
+  
   // States
   bool _isLoading = false;
-  String _bioText = '';
   String _verificationStatus = '';
   
   // Firebase service
@@ -46,20 +38,20 @@ class _VerificationScreenState extends State<VerificationScreen>
       enableTracking: true,
     ),
   );
-
+  
   // Completion states
   bool _faceVerified = false;
   bool _documentVerified = false;
   bool _facePhotoUploaded = false;
   bool _documentUploaded = false;
-
+  
   // Face Verification
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   XFile? _capturedImage;
   bool _isCameraInitialized = false;
   String? _faceImageUrl;
-
+  
   // Document Upload
   File? _selectedDocument;
   String _selectedDocType = 'Aadhaar';
@@ -69,17 +61,12 @@ class _VerificationScreenState extends State<VerificationScreen>
   // ID Verification Results
   Map<String, dynamic>? _idVerificationResults;
 
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
-    // Add listener to update UI when tab changes
     _tabController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     });
     
     _animationController = AnimationController(
@@ -91,7 +78,6 @@ class _VerificationScreenState extends State<VerificationScreen>
     );
     _animationController.forward();
     
-    // Check existing verification status first
     _checkExistingVerification();
     _initializeCamera();
   }
@@ -100,31 +86,24 @@ class _VerificationScreenState extends State<VerificationScreen>
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-
       print('🔍 Checking existing verification status for user: ${user.uid}');
-
-      // Only check user profile for verification status (skip Firestore collection to avoid permission issues)
+      
       final userData = await _firebaseService.getUserProfile();
       if (userData != null && userData['verificationCompleted'] == true) {
         print('✅ User profile shows verification completed');
-        
         setState(() {
           _verificationStatus = 'completed';
         });
-
         _showSnackBar('Verification already completed! ✅');
         
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            _navigateToProfile();
-          }
+          if (mounted) _navigateToProfile();
         });
       } else {
         print('📝 User needs to complete verification');
       }
     } catch (e) {
       print('❌ Error checking verification status: $e');
-      // Continue with normal verification flow if there's an error
     }
   }
 
@@ -142,14 +121,13 @@ class _VerificationScreenState extends State<VerificationScreen>
               profession: userData?['profession'] ?? 'Professional',
               bio: userData?['bio'] ?? 'Bio not available',
               location: userData?['location'] ?? 'Location not set',
-              images: null, // We could load existing images here if needed
+              images: null,
             ),
           ),
         );
       }
     } catch (e) {
       print('❌ Error navigating to profile: $e');
-      // Fallback to home screen
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -183,31 +161,26 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
   }
 
-  // Capture photo - simplified to just capture, no immediate upload
+  // Capture photo
   Future<void> _capturePhoto() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      _showSnackBar('Camera not initialized');
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
-      if (_cameraController == null || !_cameraController!.value.isInitialized) {
-        _showSnackBar('Camera not initialized');
-        return;
-      }
-
-      setState(() {
-        _isLoading = true;
-      });
-
       print('📸 Capturing photo...');
-      
-      // Just capture the image
       final image = await _cameraController!.takePicture();
       _capturedImage = image;
-
-      // Perform face detection (validation disabled, so always succeeds)
       await _performFaceDetection(File(image.path));
-
+      
       setState(() {
         _isLoading = false;
       });
-
       _showSnackBar('Face photo captured successfully! ✅');
       print('✅ Photo captured and face verified');
     } catch (e) {
@@ -223,22 +196,16 @@ class _VerificationScreenState extends State<VerificationScreen>
   Future<void> _uploadFaceImage() async {
     try {
       if (_capturedImage == null) return;
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      print('📸 Uploading face verification image to Supabase Storage...');
-
-      // Upload to Supabase instead of Firebase
-      _faceImageUrl = await SupabaseService.instance.uploadFaceImage(File(_capturedImage!.path));
-
-      setState(() {
-        _facePhotoUploaded = true;
-      });
-
-      print('✅ Face image uploaded successfully to Supabase: $_faceImageUrl');
+      
+      print('📸 Uploading face verification image...');
+      _faceImageUrl = await SupabaseService.instance.uploadFaceImage(
+        File(_capturedImage!.path),
+      );
+      
+      setState(() => _facePhotoUploaded = true);
+      print('✅ Face image uploaded successfully');
     } catch (e) {
-      print('❌ Error uploading face image to Supabase: $e');
+      print('❌ Error uploading face image: $e');
       throw e;
     }
   }
@@ -247,17 +214,12 @@ class _VerificationScreenState extends State<VerificationScreen>
   Future<void> _performFaceDetection(File imageFile) async {
     try {
       print('📸 Face detection validation disabled - accepting any photo');
-      
-      // Always set face as verified - validation disabled
       setState(() {
         _faceVerified = true;
       });
-
       _showSnackBar('Face verification successful! ✅ (validation disabled)');
-      
     } catch (e) {
       print('❌ Error in face detection: $e');
-      // Still set as verified even on error - validation disabled
       setState(() {
         _faceVerified = true;
       });
@@ -270,7 +232,7 @@ class _VerificationScreenState extends State<VerificationScreen>
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-
+      
       await FirebaseFirestore.instance
           .collection('user_verifications')
           .doc(user.uid)
@@ -282,49 +244,39 @@ class _VerificationScreenState extends State<VerificationScreen>
         'faceVerificationTimestamp': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
+      
       print('✅ Face verification status updated in database');
     } catch (e) {
       print('❌ Error updating face verification status: $e');
     }
   }
 
-  // Upload document and perform ID verification
-  Future<void> _uploadDocument() async {
+  // Capture document
+  Future<void> _captureDocument() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      _showSnackBar('Camera not initialized');
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
+      print('📄 Capturing document...');
+      final image = await _cameraController!.takePicture();
       setState(() {
-        _isLoading = true;
-      });
-
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.single.path != null) {
-        _selectedDocument = File(result.files.single.path!);
-
-        // Upload to Firebase Storage immediately
-        await _uploadDocumentImage();
-
-        // Perform ID verification
-        await _performIdVerification();
-
-        // Update database with document verification status
-        await _updateDocumentVerificationStatus();
-
-        _showSnackBar('Document uploaded and verified successfully! ✅');
-      }
-
-      setState(() {
+        _selectedDocument = File(image.path);
         _isLoading = false;
       });
+      _showSnackBar('Document captured successfully! ✅');
+      print('✅ Document captured');
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      print('❌ Error uploading document: $e');
-      _showSnackBar('Failed to upload document: $e');
+      print('❌ Error capturing document: $e');
+      _showSnackBar('Failed to capture document: $e');
     }
   }
 
@@ -332,73 +284,57 @@ class _VerificationScreenState extends State<VerificationScreen>
   Future<void> _uploadDocumentImage() async {
     try {
       if (_selectedDocument == null) return;
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      print('📄 Uploading document verification image to Supabase Storage...');
-
-      // Upload to Supabase instead of Firebase
-      _documentImageUrl = await SupabaseService.instance.uploadDocumentImage(_selectedDocument!, _selectedDocType);
-
-      setState(() {
-        _documentUploaded = true;
-      });
-
-      print('✅ Document image uploaded successfully to Supabase: $_documentImageUrl');
+      
+      print('📄 Uploading document verification image...');
+      _documentImageUrl = await SupabaseService.instance.uploadDocumentImage(
+        _selectedDocument!,
+        _selectedDocType,
+      );
+      
+      setState(() => _documentUploaded = true);
+      print('✅ Document image uploaded successfully');
     } catch (e) {
-      print('❌ Error uploading document image to Supabase: $e');
+      print('❌ Error uploading document image: $e');
       throw e;
     }
   }
 
-  // Perform ID verification (simulated - in real apps, use services like Jumio, Onfido, etc.)
+  // Perform ID verification (simulated)
   Future<void> _performIdVerification() async {
     try {
       print('🔍 Performing ID verification for ${_selectedDocType}...');
-
-      // Simulate ID verification process
-      // In real apps, you would use services like:
-      // - Jumio (jumio.com)
-      // - Onfido (onfido.com)
-      // - AWS Textract
-      // - Google Document AI
-      // - Microsoft Form Recognizer
-
       await Future.delayed(const Duration(seconds: 2)); // Simulate processing
-
-      // Simulated verification results
+      
       _idVerificationResults = {
         'documentType': _selectedDocType,
         'isValid': true,
         'confidence': 0.95,
         'extractedData': {
-          'name': 'John Doe', // In real apps, this would be extracted from the document
+          'name': 'John Doe',
           'documentNumber': _selectedDocType == 'Aadhaar' ? '1234-5678-9012' : 'ABCDE1234F',
           'dateOfBirth': '1990-01-01',
           'address': '123 Main Street, City, State',
         },
         'verificationChecks': {
           'documentAuthenticity': true,
-          'faceMatch': true, // Compare with face photo
+          'faceMatch': true,
           'dataConsistency': true,
           'tamperingDetection': false,
         },
-        'riskScore': 0.1, // Lower is better
+        'riskScore': 0.1,
         'verificationTimestamp': DateTime.now().toIso8601String(),
       };
-
+      
       setState(() {
         _documentVerified = _idVerificationResults!['isValid'] && 
                            _idVerificationResults!['confidence'] > 0.8;
       });
-
+      
       if (_documentVerified) {
         _showSnackBar('ID verification successful! Document is authentic. ✅');
       } else {
         _showSnackBar('ID verification failed. Please upload a clear, valid document.');
       }
-
       print('✅ ID verification completed: ${_documentVerified ? "PASSED" : "FAILED"}');
     } catch (e) {
       print('❌ Error in ID verification: $e');
@@ -413,7 +349,7 @@ class _VerificationScreenState extends State<VerificationScreen>
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-
+      
       await FirebaseFirestore.instance
           .collection('user_verifications')
           .doc(user.uid)
@@ -427,7 +363,7 @@ class _VerificationScreenState extends State<VerificationScreen>
         'documentVerificationTimestamp': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
+      
       print('✅ Document verification status updated in database');
     } catch (e) {
       print('❌ Error updating document verification status: $e');
@@ -438,7 +374,6 @@ class _VerificationScreenState extends State<VerificationScreen>
   void dispose() {
     _tabController.dispose();
     _animationController.dispose();
-    _bioController.dispose();
     _cameraController?.dispose();
     _faceDetector.close();
     super.dispose();
@@ -478,7 +413,6 @@ class _VerificationScreenState extends State<VerificationScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Success Icon
           Container(
             width: 120,
             height: 120,
@@ -509,7 +443,6 @@ class _VerificationScreenState extends State<VerificationScreen>
           
           const SizedBox(height: 32),
           
-          // Title
           const Text(
             'Verification Complete!',
             style: TextStyle(
@@ -523,7 +456,6 @@ class _VerificationScreenState extends State<VerificationScreen>
           
           const SizedBox(height: 16),
           
-          // Subtitle
           Text(
             'Your identity has been successfully verified.\nYou can now access all features.',
             style: TextStyle(
@@ -536,7 +468,6 @@ class _VerificationScreenState extends State<VerificationScreen>
           
           const SizedBox(height: 40),
           
-          // Status Cards
           Row(
             children: [
               Expanded(
@@ -559,7 +490,6 @@ class _VerificationScreenState extends State<VerificationScreen>
           
           const SizedBox(height: 40),
           
-          // Continue Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -629,10 +559,7 @@ class _VerificationScreenState extends State<VerificationScreen>
     return AppBar(
       backgroundColor: Colors.black,
       elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
+      automaticallyImplyLeading: false,
       title: const Text(
         'Profile Verification',
         style: TextStyle(
@@ -644,7 +571,6 @@ class _VerificationScreenState extends State<VerificationScreen>
       centerTitle: true,
     );
   }
-
 
   Widget _buildTabBar() {
     return Container(
@@ -685,14 +611,13 @@ class _VerificationScreenState extends State<VerificationScreen>
     );
   }
 
-
   Widget _buildFaceVerificationTab() {
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           const SizedBox(height: 20),
-          Text(
+          const Text(
             'Face Verification',
             style: TextStyle(
               color: Colors.white,
@@ -736,7 +661,6 @@ class _VerificationScreenState extends State<VerificationScreen>
         ),
       );
     }
-
     return Container(
       height: 400,
       decoration: BoxDecoration(
@@ -749,7 +673,6 @@ class _VerificationScreenState extends State<VerificationScreen>
             borderRadius: BorderRadius.circular(20),
             child: CameraPreview(_cameraController!),
           ),
-          // Face guide overlay
           Center(
             child: Container(
               width: 250,
@@ -784,9 +707,8 @@ class _VerificationScreenState extends State<VerificationScreen>
 
   Widget _buildCameraControls() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        
         GestureDetector(
           onTap: _capturePhoto,
           child: Container(
@@ -802,7 +724,6 @@ class _VerificationScreenState extends State<VerificationScreen>
                 : const Icon(Icons.camera_alt, color: Colors.white, size: 30),
           ),
         ),
-        
       ],
     );
   }
@@ -867,7 +788,7 @@ class _VerificationScreenState extends State<VerificationScreen>
           const SizedBox(height: 30),
           
           // Document type selector
-          Text(
+          const Text(
             'Select Document Type',
             style: TextStyle(
               color: Colors.white,
@@ -911,7 +832,7 @@ class _VerificationScreenState extends State<VerificationScreen>
           Expanded(
             child: _selectedDocument != null
                 ? _buildDocumentPreview()
-                : _buildDocumentUploadArea(),
+                : _buildDocumentCameraView(),
           ),
           
           const SizedBox(height: 20),
@@ -920,10 +841,6 @@ class _VerificationScreenState extends State<VerificationScreen>
         ],
       ),
     );
-  }
-
-  Widget _buildDocumentUploadArea() {
-    return _buildDocumentCameraView();
   }
 
   Widget _buildDocumentCameraView() {
@@ -939,7 +856,6 @@ class _VerificationScreenState extends State<VerificationScreen>
         ),
       );
     }
-
     return Container(
       height: 400,
       decoration: BoxDecoration(
@@ -952,7 +868,6 @@ class _VerificationScreenState extends State<VerificationScreen>
             borderRadius: BorderRadius.circular(20),
             child: CameraPreview(_cameraController!),
           ),
-          // Document guide overlay
           Center(
             child: Container(
               width: 300,
@@ -982,7 +897,6 @@ class _VerificationScreenState extends State<VerificationScreen>
               ),
             ),
           ),
-          // Instructions at top
           Positioned(
             top: 20,
             left: 20,
@@ -1028,7 +942,7 @@ class _VerificationScreenState extends State<VerificationScreen>
 
   Widget _buildDocumentCameraControls() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         GestureDetector(
           onTap: _captureDocument,
@@ -1081,143 +995,16 @@ class _VerificationScreenState extends State<VerificationScreen>
     );
   }
 
-
-  
-
-  // Camera Functions
-  Future<void> _takePicture() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      // Fallback to gallery picker if camera not available (emulator)
-      await _pickImageFromGallery();
-      return;
-    }
-    
-    setState(() {
-      _isLoading = true;
-    });
-    
-    try {
-      print('📸 Taking picture...');
-      final XFile image = await _cameraController!.takePicture();
-      
-      // Validate face in the captured image
-      print('🔍 Validating face in captured image...');
-      final bool isValidFace = await _validateFaceInImage(image);
-      
-      if (isValidFace) {
-        setState(() {
-          _capturedImage = image;
-          _isLoading = false;
-        });
-        _showSnackBar('✅ Face detected successfully!');
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-        // Don't save the image if face validation fails
-        _showSnackBar('❌ Please ensure your face is clearly visible and you\'re the only person in the frame');
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showSnackBar('Camera not available. Using gallery picker...');
-      await _pickImageFromGallery();
-    }
-  }
-
-  // Validate face in captured image - VALIDATION DISABLED
-  Future<bool> _validateFaceInImage(XFile imageFile) async {
-    try {
-      print('📸 Photo validation disabled - accepting any image');
-      print('✅ Face validation passed (validation disabled)');
-      return true; // Always return true - validation disabled
-      
-    } catch (e) {
-      print('❌ Face detection error: $e');
-      return true; // Still return true even on error - validation disabled
-    }
-  }
-
-  Future<void> _pickImageFromGallery() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
-      
-      if (image != null) {
-        setState(() {
-          _capturedImage = image;
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error picking image: $e');
-    }
-  }
-
-  
-
-  
-
-  // Document Functions
-  Future<void> _captureDocument() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      // Fallback to gallery picker if camera not available (emulator)
-      await _pickDocument();
-      return;
-    }
-    
-    try {
-      print('📄 Capturing document...');
-      final XFile image = await _cameraController!.takePicture();
-      setState(() {
-        _selectedDocument = File(image.path);
-      });
-      _showSnackBar('Document captured successfully! ✅');
-      print('✅ Document captured');
-    } catch (e) {
-      print('❌ Error capturing document: $e');
-      _showSnackBar('Camera not available. Using gallery picker...');
-      await _pickDocument();
-    }
-  }
-
-  Future<void> _pickDocument() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-      );
-
-      if (result != null && result.files.single.path != null) {
-        setState(() {
-          _selectedDocument = File(result.files.single.path!);
-        });
-      }
-    } catch (e) {
-      _showSnackBar('Error picking document: $e');
-    }
-  }
-
-  // Verification Functions
   Future<void> _verifyFace() async {
     if (_capturedImage == null) return;
     
     setState(() {
       _isLoading = true;
     });
-
+    
     try {
       print('🔍 Starting face verification...');
-      
-      // Upload to Firebase Storage
       await _uploadFaceImage();
-      
-      // Update database with face verification status
       await _updateFaceVerificationStatus();
       
       setState(() {
@@ -1229,7 +1016,6 @@ class _VerificationScreenState extends State<VerificationScreen>
       _showSnackBar('Face verification completed! ✅');
       print('✅ Face verification completed');
       
-      // Auto-move to next tab after a short delay
       await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) {
         _tabController.animateTo(1);
@@ -1250,17 +1036,11 @@ class _VerificationScreenState extends State<VerificationScreen>
       _isLoading = true;
       _verificationStatus = '';
     });
-
+    
     try {
       print('🔍 Starting document verification...');
-      
-      // Upload document to Firebase Storage
       await _uploadDocumentImage();
-      
-      // Perform ID verification
       await _performIdVerification();
-      
-      // Update database with document verification status
       await _updateDocumentVerificationStatus();
       
       setState(() {
@@ -1271,7 +1051,6 @@ class _VerificationScreenState extends State<VerificationScreen>
       
       _showSnackBar('Document verification completed! ✅');
       print('✅ Document verification completed');
-      
     } catch (e) {
       print('❌ Document verification failed: $e');
       setState(() {
@@ -1283,12 +1062,7 @@ class _VerificationScreenState extends State<VerificationScreen>
   }
 
   Future<void> _submitVerification() async {
-    print('🚀 _submitVerification called');
-    print('🔍 _canProceed(): ${_canProceed()}');
-    print('🔍 _faceVerified: $_faceVerified, _documentVerified: $_documentVerified');
-    
     if (!_canProceed()) {
-      print('❌ Cannot proceed - verification not complete');
       _showSnackBar('Please complete both face and document verification first');
       return;
     }
@@ -1296,33 +1070,28 @@ class _VerificationScreenState extends State<VerificationScreen>
     setState(() {
       _isLoading = true;
     });
-
+    
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('User not authenticated');
-      }
-
+      if (user == null) throw Exception('User not authenticated');
+      
       print('🔥 Starting verification submission for user: ${user.uid}');
       
-      // Use already uploaded image URLs from Supabase
       String? faceImageUrl = _faceImageUrl;
       String? documentImageUrl = _documentImageUrl;
       
-      // If images weren't uploaded yet, upload them now to Supabase
       if (_capturedImage != null && faceImageUrl == null) {
         print('📸 Uploading face verification image to Supabase...');
         faceImageUrl = await SupabaseService.instance.uploadFaceImage(File(_capturedImage!.path));
         print('✅ Face image uploaded to Supabase: $faceImageUrl');
       }
-
+      
       if (_selectedDocument != null && documentImageUrl == null) {
         print('📄 Uploading document verification image to Supabase...');
         documentImageUrl = await SupabaseService.instance.uploadDocumentImage(_selectedDocument!, _selectedDocType);
         print('✅ Document image uploaded to Supabase: $documentImageUrl');
       }
-
-      // Save verification data to Firestore
+      
       print('💾 Saving verification data to Firestore...');
       await FirebaseFirestore.instance
           .collection('user_verifications')
@@ -1338,8 +1107,7 @@ class _VerificationScreenState extends State<VerificationScreen>
         'submittedAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-
-      // Update user profile with verification status
+      
       print('👤 Updating user profile verification status...');
       await FirebaseFirestore.instance
           .collection('users')
@@ -1351,28 +1119,15 @@ class _VerificationScreenState extends State<VerificationScreen>
         'lastUpdated': FieldValue.serverTimestamp(),
       });
 
-
       print('✅ Verification data saved successfully!');
       _showSnackBar('Verification completed successfully! Welcome to Senorita! 🎉');
       
-      // Navigate to HomeScreen after successful verification
-      print('🧭 Verification completed - navigating to home screen...');
-      
       if (mounted) {
-        print('✅ Widget is mounted, navigating to home screen...');
-        
-        // Add a small delay to show the success message
         await Future.delayed(const Duration(seconds: 2));
-        
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
-        print('🎯 Navigation to home screen completed successfully');
-      } else {
-        print('❌ Widget not mounted, cannot navigate');
       }
     } catch (e) {
       print('❌ Verification submission failed: $e');
@@ -1384,18 +1139,14 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
   }
 
-
   bool _canProceed() {
-    return _faceVerified && 
-           _documentVerified;
+    return _faceVerified && _documentVerified;
   }
 
   String _getButtonText() {
     int currentTab = _tabController.index;
-    print('🔍 Current tab: $currentTab, Face verified: $_faceVerified, Doc verified: $_documentVerified');
     
     if (currentTab == 0) {
-      // Face verification tab
       if (_faceVerified) {
         return 'Go to ID Verify';
       } else if (_capturedImage != null) {
@@ -1404,7 +1155,6 @@ class _VerificationScreenState extends State<VerificationScreen>
         return 'Take Selfie';
       }
     } else {
-      // Document verification tab (tab 1, final step)
       if (_documentVerified) {
         return 'Complete Verification';
       } else if (_selectedDocument != null) {
@@ -1417,31 +1167,22 @@ class _VerificationScreenState extends State<VerificationScreen>
 
   VoidCallback? _getButtonAction() {
     int currentTab = _tabController.index;
-    print('🔍 _getButtonAction - currentTab: $currentTab, _faceVerified: $_faceVerified, _documentVerified: $_documentVerified');
     
     if (currentTab == 0) {
-      // Face verification tab
       if (_faceVerified) {
-        print('✅ Face verified - returning _goToNextStep');
         return _goToNextStep;
       } else if (_capturedImage != null) {
-        print('📸 Image captured - returning _verifyFace');
-        return _verifyFace; // This will verify and auto-move to next step
+        return _verifyFace;
       } else {
-        print('❌ No image captured - button disabled');
-        return null; // Disabled until photo is taken
+        return null;
       }
     } else {
-      // Document verification tab (now final step)
       if (_documentVerified) {
-        print('✅ Document verified - returning _submitVerification');
-        return _submitVerification; // Complete verification and go to home
+        return _submitVerification;
       } else if (_selectedDocument != null) {
-        print('📄 Document selected - returning _verifyDocument');
-        return _verifyDocument; // This will verify and enable completion
+        return _verifyDocument;
       } else {
-        print('❌ No document selected - button disabled');
-        return null; // Disabled until document is uploaded
+        return null;
       }
     }
   }
@@ -1450,7 +1191,6 @@ class _VerificationScreenState extends State<VerificationScreen>
     int currentTab = _tabController.index;
     if (currentTab < 1) {
       _tabController.animateTo(currentTab + 1);
-      // Force rebuild to update button text
       setState(() {});
     }
   }
