@@ -108,6 +108,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
           
           if (onboardingCompleted == true && verificationCompleted == true) {
             print('✅ User has completed onboarding AND verification - navigating to home screen');
+            // Initialize notifications for the logged-in user
+            FirebaseService().initNotifications();
             if (mounted) {
               setState(() {
                 _homeWidget = const HomeScreen();

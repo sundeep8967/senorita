@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
@@ -324,6 +325,55 @@ class FirebaseService {
       print('✅ Onboarding progress saved at step: $currentStep');
     } catch (e) {
       print('❌ Error saving onboarding progress: $e');
+    }
+  }
+
+  // Initialize notifications and save FCM token
+  Future<void> initNotifications() async {
+    if (currentUserId == null) return;
+
+    try {
+      final messaging = FirebaseMessaging.instance;
+
+      // Request permission
+      final settings = await messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('✅ User granted notification permission');
+
+        final fcmToken = await messaging.getToken();
+        if (fcmToken != null) {
+          print('📱 Got FCM Token: $fcmToken');
+          // Save the token to the user's profile
+          await _firestore.collection('users').doc(currentUserId).update({
+            'fcmToken': fcmToken,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+          print('✅ FCM token saved to user profile');
+        }
+
+        // Listen for token refreshes and save the new one
+        messaging.onTokenRefresh.listen((newToken) {
+          print('🔄 FCM token refreshed: $newToken');
+          _firestore.collection('users').doc(currentUserId).update({
+            'fcmToken': newToken,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+        });
+
+      } else {
+        print('❌ User declined or has not accepted notification permission');
+      }
+    } catch (e) {
+      print('❌ Error initializing notifications: $e');
     }
   }
 
