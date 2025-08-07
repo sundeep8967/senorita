@@ -76,8 +76,12 @@ class UserProfile {
       throw Exception('Document data is null');
     }
 
+    return UserProfile.fromMap(doc.id, data);
+  }
+
+  factory UserProfile.fromMap(String userId, Map<String, dynamic> data) {
     return UserProfile(
-      userId: doc.id,
+      userId: userId,
       fullName: data['fullName'],
       gender: data['gender'],
       age: data['age'],
@@ -88,9 +92,10 @@ class UserProfile {
       coordinates: data['coordinates'],
       onboardingCompleted: data['onboardingCompleted'] ?? false,
       profileCompletionPercentage: data['profileCompletionPercentage'] ?? 0,
-      createdAt: data['createdAt']?.toDate(),
-      lastUpdated: data['lastUpdated']?.toDate(),
-      onboardingCompletedAt: data['onboardingCompletedAt']?.toDate(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate(),
+      onboardingCompletedAt:
+          (data['onboardingCompletedAt'] as Timestamp?)?.toDate(),
       isActive: data['isActive'] ?? false,
       profileStatus: data['profileStatus'],
       nameCompleted: data['nameCompleted'] ?? false,
