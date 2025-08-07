@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
@@ -198,16 +199,39 @@ class FirebaseService {
     if (currentUserId == null) return;
 
     try {
+      // Get the current user data first
+      final userDoc =
+          await _firestore.collection('users').doc(currentUserId).get();
+      if (!userDoc.exists) {
+        print('❌ User document does not exist for completion.');
+        return;
+      }
+
+      final data = userDoc.data() as Map<String, dynamic>;
+
+      // Calculate completion from the data map
+      int completedFields = 0;
+      int totalFields = 7; // name, gender, age, profession, photos, bio, location
+      if (data['nameCompleted'] == true) completedFields++;
+      if (data['genderCompleted'] == true) completedFields++;
+      if (data['ageCompleted'] == true) completedFields++;
+      if (data['professionCompleted'] == true) completedFields++;
+      if (data['photosCompleted'] == true) completedFields++;
+      if (data['bioCompleted'] == true) completedFields++;
+      if (data['locationCompleted'] == true) completedFields++;
+
+      final percentage = ((completedFields / totalFields) * 100).round();
+
       await _firestore.collection('users').doc(currentUserId).update({
         'onboardingCompleted': true,
-        'profileCompletionPercentage': 100,
+        'profileCompletionPercentage': percentage, // Use calculated percentage
         'onboardingCompletedAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'isActive': true,
         'profileStatus': 'active',
       });
-      
-      print('✅ Onboarding completed successfully!');
+
+      print('✅ Onboarding completed successfully! Profile is $percentage% complete.');
     } catch (e) {
       print('❌ Error completing onboarding: $e');
       rethrow;
@@ -275,6 +299,19 @@ class FirebaseService {
     }
   }
 
+  // Update user profile with a map of data
+  Future<void> updateUserProfile(Map<String, dynamic> data) async {
+    if (currentUserId == null) return;
+
+    try {
+      await _firestore.collection('users').doc(currentUserId).update(data);
+      print('✅ User profile updated successfully');
+    } catch (e) {
+      print('❌ Error updating user profile: $e');
+      rethrow;
+    }
+  }
+
   // Listen to user profile changes
   Stream<DocumentSnapshot> getUserProfileStream() {
     if (currentUserId == null) {
@@ -324,6 +361,55 @@ class FirebaseService {
       print('✅ Onboarding progress saved at step: $currentStep');
     } catch (e) {
       print('❌ Error saving onboarding progress: $e');
+    }
+  }
+
+  // Initialize notifications and save FCM token
+  Future<void> initNotifications() async {
+    if (currentUserId == null) return;
+
+    try {
+      final messaging = FirebaseMessaging.instance;
+
+      // Request permission
+      final settings = await messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('✅ User granted notification permission');
+
+        final fcmToken = await messaging.getToken();
+        if (fcmToken != null) {
+          print('📱 Got FCM Token: $fcmToken');
+          // Save the token to the user's profile
+          await _firestore.collection('users').doc(currentUserId).update({
+            'fcmToken': fcmToken,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+          print('✅ FCM token saved to user profile');
+        }
+
+        // Listen for token refreshes and save the new one
+        messaging.onTokenRefresh.listen((newToken) {
+          print('🔄 FCM token refreshed: $newToken');
+          _firestore.collection('users').doc(currentUserId).update({
+            'fcmToken': newToken,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+        });
+
+      } else {
+        print('❌ User declined or has not accepted notification permission');
+      }
+    } catch (e) {
+      print('❌ Error initializing notifications: $e');
     }
   }
 

@@ -1,5 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:senorita/features/meetup/data/repositories/meetup_repository_impl.dart';
+import 'package:senorita/features/payment/app/payment_service.dart';
+import 'package:senorita/features/payment/data/repositories/payment_repository_impl.dart';
+import 'package:senorita/features/payment/domain/repositories/payment_repository.dart';
 
 class ChooseCafeScreen extends StatefulWidget {
   const ChooseCafeScreen({Key? key}) : super(key: key);
@@ -128,10 +132,7 @@ class _ChooseCafeScreenState extends State<ChooseCafeScreen> {
         ),
         const SizedBox(height: 40),
         ElevatedButton(
-          onPressed: () {
-            // Handle confirmation logic
-            Navigator.pop(context); // Close the dialog
-          },
+          onPressed: _handleConfirmation,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.black,
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
@@ -147,6 +148,69 @@ class _ChooseCafeScreenState extends State<ChooseCafeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _handleConfirmation() async {
+    // This is where the end-to-end flow is kicked off.
+    // In a real app, these would be provided by a dependency injection solution.
+    final paymentRepository = PaymentRepositoryImpl();
+    final meetupRepository = MeetupRepositoryImpl();
+    final paymentService = PaymentService(
+      paymentRepository: paymentRepository,
+      meetupRepository: meetupRepository,
+    );
+
+    // Show a loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
+    // Hardcoded data for verification purposes
+    final success = await paymentService.initiatePaidMeetup(
+      requestingUserId: 'user_boy_123', // Dummy ID for the user paying
+      invitedUserId: 'user_girl_456', // Dummy ID for the user being invited
+      hotelId: _selectedCafe ?? 'default_cafe',
+      packageType: 'Coffee',
+      packageCost: 500.0,
+      paymentRequest: PaymentRequest(
+        amount: 500.0,
+        currency: 'INR',
+        userName: 'Test User',
+        userEmail: 'test@example.com',
+        userPhone: '9876543210',
+      ),
+    );
+
+    // Hide loading indicator
+    Navigator.pop(context);
+
+    // Show result to the user
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(success ? 'Request Sent!' : 'Request Failed'),
+          content: Text(success
+              ? 'Your meetup request has been sent successfully.'
+              : 'There was an error processing your request. Please try again.'),
+          actions: [
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.pop(context); // Close the alert
+                if (success) {
+                  Navigator.pop(context); // Close the cafe screen
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

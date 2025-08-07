@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:senorita/services/firebase_service.dart';
+import 'home_screen.dart';
 
 class ProfileDisplayScreen extends StatefulWidget {
   final String name;
@@ -8,7 +11,7 @@ class ProfileDisplayScreen extends StatefulWidget {
   final String bio;
   final String location;
   final List<File>? images;
-  
+
   const ProfileDisplayScreen({
     Key? key,
     required this.name,
@@ -18,28 +21,29 @@ class ProfileDisplayScreen extends StatefulWidget {
     required this.location,
     this.images,
   }) : super(key: key);
-  
+
   @override
   State<ProfileDisplayScreen> createState() => _ProfileDisplayScreenState();
 }
 
-class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> 
+class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
     with TickerProviderStateMixin {
   late TextEditingController _nameController;
   late TextEditingController _ageController;
   late TextEditingController _professionController;
   late TextEditingController _bioController;
   late TextEditingController _locationController;
-  
+
   File? _profileImage;
   List<File> _images = [];
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
-  bool _isEditing = false;
-  
+
+  bool _isEditing = true;
+  final FirebaseService _firebaseService = FirebaseService();
+
   @override
   void initState() {
     super.initState();
@@ -48,20 +52,20 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
     _professionController = TextEditingController(text: widget.profession);
     _bioController = TextEditingController(text: widget.bio);
     _locationController = TextEditingController(text: widget.location);
-    
+
     if (widget.images != null) {
       _images = List.from(widget.images!);
       if (_images.isNotEmpty) {
         _profileImage = _images[0];
       }
     }
-    
+
     // Initialize animations
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -69,7 +73,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -77,10 +81,10 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-    
+
     _animationController.forward();
   }
-  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -91,44 +95,66 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
     _animationController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _pickImage() async {
     // In a real app, you would use image_picker package
     setState(() {
       _showSnackBar('Image picker would open here');
     });
   }
-  
-  void _saveProfile() {
-    // Validate inputs
+
+  int _calculateProfileCompletionPercentage() {
+    int completedFields = 0;
+    int totalFields = 6; // name, age, profession, bio, location, photos
+
+    if (_nameController.text.isNotEmpty) completedFields++;
+    if (_ageController.text.isNotEmpty) completedFields++;
+    if (_professionController.text.isNotEmpty) completedFields++;
+    if (_bioController.text.isNotEmpty) completedFields++;
+    if (_locationController.text.isNotEmpty) completedFields++;
+    if (_images.isNotEmpty) completedFields++;
+
+    return ((completedFields / totalFields) * 100).round();
+  }
+
+  Future<void> _saveAndContinue() async {
     if (_nameController.text.isEmpty) {
       _showSnackBar('Please enter your name');
       return;
     }
-    
     if (_ageController.text.isEmpty) {
       _showSnackBar('Please enter your age');
       return;
     }
-    
     int? age = int.tryParse(_ageController.text);
     if (age == null) {
       _showSnackBar('Please enter a valid age');
       return;
     }
-    
-    _showSnackBar('Profile saved successfully!');
-    
-    Navigator.pop(context, {
-      'name': _nameController.text,
+
+    final percentage = _calculateProfileCompletionPercentage();
+
+    final updatedData = {
+      'fullName': _nameController.text,
       'age': age,
       'profession': _professionController.text,
       'bio': _bioController.text,
       'location': _locationController.text,
-      'images': _images,
-    });
+      'profileCompletionPercentage': percentage,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    };
+
+    await _firebaseService.updateUserProfile(updatedData);
+
+    _showSnackBar('Profile saved successfully!');
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      (Route<dynamic> route) => false,
+    );
   }
-  
+
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -142,7 +168,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -198,6 +224,9 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                     ),
                     GestureDetector(
                       onTap: () {
+                        if (_isEditing) {
+                          _saveAndContinue();
+                        }
                         setState(() {
                           _isEditing = !_isEditing;
                         });
@@ -205,7 +234,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _isEditing 
+                          color: _isEditing
                               ? Colors.white.withOpacity(0.1)
                               : Colors.white.withOpacity(0.05),
                           borderRadius: BorderRadius.circular(12),
@@ -225,7 +254,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                 ),
               ),
             ),
-            
+
             // Scrollable Content
             Expanded(
               child: SingleChildScrollView(
@@ -240,22 +269,22 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                         children: [
                           // Profile Image Section
                           _buildProfileImageSection(),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Profile Info Section
                           _buildProfileInfoSection(),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Account Settings Section
                           _buildAccountSettingsSection(),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Action Buttons
                           _buildActionButtons(),
-                          
+
                           const SizedBox(height: 40),
                         ],
                       ),
@@ -269,7 +298,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       ),
     );
   }
-  
+
   Widget _buildProfileImageSection() {
     return Column(
       children: [
@@ -305,7 +334,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                       ),
               ),
             ),
-            
+
             // Camera Button
             Positioned(
               bottom: 5,
@@ -340,9 +369,9 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             ),
           ],
         ),
-        
+
         const SizedBox(height: 20),
-        
+
         // User Info
         Text(
           widget.name,
@@ -352,9 +381,9 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             fontWeight: FontWeight.bold,
           ),
         ),
-        
+
         const SizedBox(height: 8),
-        
+
         Text(
           '${widget.age} years • ${widget.profession}',
           style: TextStyle(
@@ -365,7 +394,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       ],
     );
   }
-  
+
   Widget _buildProfileInfoSection() {
     return Container(
       decoration: BoxDecoration(
@@ -399,7 +428,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
               ),
             ),
           ),
-          
+
           // Info Items
           Padding(
             padding: const EdgeInsets.all(16),
@@ -448,7 +477,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       ),
     );
   }
-  
+
   Widget _buildInfoItem({
     required IconData icon,
     required String title,
@@ -474,9 +503,9 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             size: 20,
           ),
         ),
-        
+
         const SizedBox(width: 16),
-        
+
         // Content
         Expanded(
           child: Column(
@@ -490,9 +519,9 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              
+
               const SizedBox(height: 4),
-              
+
               _isEditing
                   ? TextField(
                       controller: controller,
@@ -529,7 +558,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       ],
     );
   }
-  
+
   Widget _buildAccountSettingsSection() {
     return Container(
       decoration: BoxDecoration(
@@ -563,7 +592,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
               ),
             ),
           ),
-          
+
           // Settings Items
           Padding(
             padding: const EdgeInsets.all(8),
@@ -596,7 +625,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       ),
     );
   }
-  
+
   Widget _buildSettingsItem({
     required IconData icon,
     required String title,
@@ -633,7 +662,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       onTap: onTap,
     );
   }
-  
+
   Widget _buildActionButtons() {
     return Column(
       children: [
@@ -643,7 +672,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             margin: const EdgeInsets.only(bottom: 16),
             child: ElevatedButton(
               onPressed: () {
-                _saveProfile();
+                _saveAndContinue();
                 setState(() {
                   _isEditing = false;
                 });
@@ -658,7 +687,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                 elevation: 0,
               ),
               child: const Text(
-                'Save Changes',
+                'Save and Continue',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -667,7 +696,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
               ),
             ),
           ),
-          
         Container(
           width: double.infinity,
           child: ElevatedButton(

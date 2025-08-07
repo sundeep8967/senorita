@@ -119,32 +119,22 @@ class _VerificationScreenState extends State<VerificationScreen>
   }
 
   Future<void> _navigateToProfile() async {
-    try {
-      final userData = await _firebaseService.getUserProfile();
-      
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProfileDisplayScreen(
-              name: userData?['fullName'] ?? 'User',
-              age: userData?['age'] ?? 25,
-              profession: userData?['profession'] ?? 'Professional',
-              bio: userData?['bio'] ?? 'Bio not available',
-              location: userData?['location'] ?? 'Location not set',
-              images: null,
-            ),
+    final userData = await _firebaseService.getUserProfile();
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileDisplayScreen(
+            name: userData?['fullName'] ?? 'User',
+            age: userData?['age'] ?? 25,
+            profession: userData?['profession'] ?? 'Professional',
+            bio: userData?['bio'] ?? 'Bio not available',
+            location: userData?['location'] ?? 'Location not set',
+            images: null,
           ),
-        );
-      }
-    } catch (e) {
-      print('❌ Error navigating to profile: $e');
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
+        ),
+      );
     }
   }
 
@@ -1157,12 +1147,10 @@ class _VerificationScreenState extends State<VerificationScreen>
     print('✅ Verification data saved successfully!');
     _showSnackBar('Verification completed successfully! Welcome to Senorita! 🎉');
     
+    // Navigate to the Profile Display Screen to complete the profile
     if (mounted) {
       await Future.delayed(const Duration(seconds: 2));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+      _navigateToProfile();
     }
   } catch (e) {
     print('❌ Verification submission failed: $e');

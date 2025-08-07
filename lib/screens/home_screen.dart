@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:senorita/models/user_profile.dart'; // Import UserProfile
+import 'package:senorita/screens/profile_display_screen.dart';
 import 'package:senorita/screens/verification_screen.dart';
+import 'package:senorita/services/firebase_service.dart';
 
 import 'package:senorita/screens/chat_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
@@ -7,9 +10,12 @@ import 'package:senorita/screens/choose_cafe_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
+import 'dart:ui';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final bool isLocked;
+
+  const HomeScreen({Key? key, this.isLocked = false}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -18,32 +24,42 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentImageIndex = 0;
   Timer? _imageTimer;
-  
-  final Map<String, dynamic> profileData = {
-    'name': 'Sophia Williams',
-    'age': 25,
-    'distance': '3.5 Km Away',
-    'location': 'Bangalore, KA',
-    'profession': 'Software Engineer',
-    'bio': 'Book lover, coffee enthusiast, and part-time traveler. Looking for someone to share deep conversations and...',
-    'images': [
-      'assets/girl1a.jpg',
-      'assets/girl1b.jpg',
-      'assets/girl1c.jpg',
-    ]
-  };
+  final FirebaseService _firebaseService = FirebaseService();
+  UserProfile? _userProfile; // Changed from Map to UserProfile
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _startImageSlideshow();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final userProfileMap = await _firebaseService.getUserProfile();
+    if (mounted) {
+      if (userProfileMap != null) {
+        final userId = _firebaseService.currentUserId!;
+        setState(() {
+          _userProfile = UserProfile.fromMap(userId, userProfileMap);
+          _isLoading = false;
+        });
+        if (_userProfile?.photos != null && _userProfile!.photos!.isNotEmpty) {
+          _startImageSlideshow();
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _startImageSlideshow() {
+    if (_userProfile?.photos == null || _userProfile!.photos!.length <= 1) return;
     _imageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         setState(() {
-          _currentImageIndex = (_currentImageIndex + 1) % (profileData['images'] as List).length;
+          _currentImageIndex = (_currentImageIndex + 1) % _userProfile!.photos!.length;
         });
       }
     });
@@ -56,10 +72,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _handleImageTap(String side) {
+    if (_userProfile?.photos == null || _userProfile!.photos!.isEmpty) return;
     setState(() {
       if (side == 'left' && _currentImageIndex > 0) {
         _currentImageIndex--;
-      } else if (side == 'right' && _currentImageIndex < (profileData['images'] as List).length - 1) {
+      } else if (side == 'right' && _currentImageIndex < _userProfile!.photos!.length - 1) {
         _currentImageIndex++;
       }
     });
@@ -67,6 +84,98 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final homeContent = _buildHomeContent();
+
+    if (widget.isLocked) {
+      return Stack(
+        children: [
+          homeContent,
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+            ),
+          ),
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.lock, color: Colors.white, size: 100),
+                    const SizedBox(height: 20),
+                    const Text('Profile Incomplete', style: TextStyle(color: Colors.white, fontSize: 24)),
+                    const SizedBox(height: 10),
+                    const Text('Please complete your profile to unlock.', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                    const SizedBox(height: 30),
+                    if (_userProfile != null && _userProfile!.missingSteps.isNotEmpty) ...[
+                      const Text(
+                        'Here\'s what\'s missing:',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 15),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        alignment: WrapAlignment.center,
+                        children: _userProfile!.missingSteps
+                            .map((step) => Chip(
+                                  label: Text(step),
+                                  backgroundColor: Colors.white.withOpacity(0.2),
+                                  labelStyle: const TextStyle(color: Colors.white),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 30),
+                    ],
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfileDisplayScreen(
+                              name: _userProfile?.fullName ?? '',
+                              age: _userProfile?.age ?? 0,
+                              profession: _userProfile?.profession ?? '',
+                              bio: _userProfile?.bio ?? '',
+                              location: _userProfile?.location ?? '',
+                              images: null,
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('Complete Profile'),
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return homeContent;
+  }
+
+  Widget _buildHomeContent() {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -148,10 +257,21 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 // Profile Image
                 Positioned.fill(
-                  child: Image.asset(
-                    profileData['images'][_currentImageIndex],
-                    fit: BoxFit.cover,
-                  ),
+                  child: (_userProfile?.photos?.isNotEmpty ?? false)
+                      ? Image.network(
+                          _userProfile!.photos![_currentImageIndex],
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          color: Colors.grey[800],
+                          child: const Center(
+                            child: Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 100,
+                            ),
+                          ),
+                        ),
                 ),
 
                 // Tap zones for image navigation
@@ -202,11 +322,11 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 16,
             child: Row(
               children: List.generate(
-                (profileData['images'] as List).length,
+                _userProfile?.photos?.length ?? 0,
                 (index) => Expanded(
                   child: Container(
                     height: 4,
-                    margin: EdgeInsets.only(right: index < (profileData['images'] as List).length - 1 ? 8 : 0),
+                    margin: EdgeInsets.only(right: index < (_userProfile?.photos?.length ?? 1) - 1 ? 8 : 0),
                     decoration: BoxDecoration(
                       color: index == _currentImageIndex ? Colors.white : Colors.white.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(2),
@@ -216,8 +336,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          
 
           // Location Badge
           Positioned(
@@ -235,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      profileData['location'],
+                      _userProfile?.location ?? 'N/A',
                       style: const TextStyle(
                         color: Colors.black,
                         fontSize: 14,
@@ -260,7 +378,6 @@ class _HomeScreenState extends State<HomeScreen> {
             top: MediaQuery.of(context).size.height * 0.4,
             child: Column(
               children: [
-                
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -282,7 +399,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                
               ],
             ),
           ),
@@ -296,33 +412,33 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Profession
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
+                if ((_userProfile?.profession ?? '').isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      _userProfile!.profession!,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                  child: Text(
-                    profileData['profession'],
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                
+
                 // Name and Age
                 Row(
                   children: [
                     Text(
-                      '${profileData['name']}, ${profileData['age']}',
+                      '${_userProfile?.fullName ?? 'User'}, ${_userProfile?.age ?? 'N/A'}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -346,16 +462,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Bio
-                Text(
-                  profileData['bio'],
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
-                    height: 1.5,
+                if ((_userProfile?.bio ?? '').isNotEmpty)
+                  Text(
+                    _userProfile!.bio!,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -401,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ),
-                        
+
                         // Messages with notification
                         GestureDetector(
                           onTap: () {
@@ -442,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        
+
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -456,19 +573,28 @@ class _HomeScreenState extends State<HomeScreen> {
                             size: 24,
                           ),
                         ),
-                        
+
                         SvgPicture.asset(
                           'assets/notch_icon.svg',
                           width: 24,
                           height: 24,
                           colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                         ),
-                        
+
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const VerificationScreen()),
+                              MaterialPageRoute(
+                                builder: (context) => ProfileDisplayScreen(
+                                  name: _userProfile?.fullName ?? '',
+                                  age: _userProfile?.age ?? 0,
+                                  profession: _userProfile?.profession ?? '',
+                                  bio: _userProfile?.bio ?? '',
+                                  location: _userProfile?.location ?? '',
+                                  images: null,
+                                ),
+                              ),
                             );
                           },
                           child: SvgPicture.asset(
