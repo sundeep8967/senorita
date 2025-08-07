@@ -54,6 +54,31 @@ class FirebaseService {
     }
   }
 
+  Future<List<QueryDocumentSnapshot>> getPotentialMatches(
+      {required String currentUserGender}) async {
+    if (currentUserId == null) return [];
+
+    try {
+      String targetGender = currentUserGender == 'male' ? 'female' : 'male';
+
+      print('🔍 Fetching potential matches for gender: $targetGender');
+
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('gender', isEqualTo: targetGender)
+          .where('isActive', isEqualTo: true)
+          .where('userId', isNotEqualTo: currentUserId) // More efficient to filter in the query
+          .limit(20)
+          .get();
+
+      print('✅ Fetched ${querySnapshot.docs.length} potential matches.');
+      return querySnapshot.docs;
+    } catch (e) {
+      print('❌ Error fetching potential matches: $e');
+      return []; // Return empty list on error
+    }
+  }
+
   // Update name step
   Future<void> updateNameStep(String fullName) async {
     if (currentUserId == null) return;
