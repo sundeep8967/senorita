@@ -276,6 +276,19 @@ class FirebaseService {
     }
   }
 
+  // Update user profile with a map of data
+  Future<void> updateUserProfile(Map<String, dynamic> data) async {
+    if (currentUserId == null) return;
+
+    try {
+      await _firestore.collection('users').doc(currentUserId).update(data);
+      print('✅ User profile updated successfully');
+    } catch (e) {
+      print('❌ Error updating user profile: $e');
+      rethrow;
+    }
+  }
+
   // Listen to user profile changes
   Stream<DocumentSnapshot> getUserProfileStream() {
     if (currentUserId == null) {

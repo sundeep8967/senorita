@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:senorita/screens/profile_display_screen.dart';
 import 'package:senorita/screens/verification_screen.dart';
+import 'package:senorita/services/firebase_service.dart';
 
 import 'package:senorita/screens/chat_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
@@ -7,9 +9,12 @@ import 'package:senorita/screens/choose_cafe_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
+import 'dart:ui';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final bool isLocked;
+
+  const HomeScreen({Key? key, this.isLocked = false}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -18,32 +23,34 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentImageIndex = 0;
   Timer? _imageTimer;
-  
-  final Map<String, dynamic> profileData = {
-    'name': 'Sophia Williams',
-    'age': 25,
-    'distance': '3.5 Km Away',
-    'location': 'Bangalore, KA',
-    'profession': 'Software Engineer',
-    'bio': 'Book lover, coffee enthusiast, and part-time traveler. Looking for someone to share deep conversations and...',
-    'images': [
-      'assets/girl1a.jpg',
-      'assets/girl1b.jpg',
-      'assets/girl1c.jpg',
-    ]
-  };
+  final FirebaseService _firebaseService = FirebaseService();
+  Map<String, dynamic>? _profileData;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _startImageSlideshow();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final userProfile = await _firebaseService.getUserProfile();
+    if (mounted) {
+      setState(() {
+        _profileData = userProfile;
+        _isLoading = false;
+      });
+      if (_profileData != null && (_profileData!['images'] as List).isNotEmpty) {
+        _startImageSlideshow();
+      }
+    }
   }
 
   void _startImageSlideshow() {
     _imageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         setState(() {
-          _currentImageIndex = (_currentImageIndex + 1) % (profileData['images'] as List).length;
+          _currentImageIndex = (_currentImageIndex + 1) % (_profileData!['images'] as List).length;
         });
       }
     });
@@ -59,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       if (side == 'left' && _currentImageIndex > 0) {
         _currentImageIndex--;
-      } else if (side == 'right' && _currentImageIndex < (profileData['images'] as List).length - 1) {
+      } else if (side == 'right' && _currentImageIndex < (_profileData!['images'] as List).length - 1) {
         _currentImageIndex++;
       }
     });
@@ -67,6 +74,67 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final homeContent = _buildHomeContent();
+
+    if (widget.isLocked) {
+      return Stack(
+        children: [
+          homeContent,
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+            ),
+          ),
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.lock, color: Colors.white, size: 100),
+                  const SizedBox(height: 20),
+                  const Text('Profile Incomplete', style: TextStyle(color: Colors.white, fontSize: 24)),
+                  const SizedBox(height: 10),
+                  const Text('Please complete your profile to unlock.', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfileDisplayScreen(
+                            name: _profileData?['fullName'] ?? '',
+                            age: _profileData?['age'] ?? 0,
+                            profession: _profileData?['profession'] ?? '',
+                            bio: _profileData?['bio'] ?? '',
+                            location: _profileData?['location'] ?? '',
+                            images: null,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Complete Profile'),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return homeContent;
+  }
+
+  Widget _buildHomeContent() {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -148,10 +216,21 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 // Profile Image
                 Positioned.fill(
-                  child: Image.asset(
-                    profileData['images'][_currentImageIndex],
-                    fit: BoxFit.cover,
-                  ),
+                  child: (_profileData?['images'] as List?)?.isNotEmpty == true
+                      ? Image.network(
+                          (_profileData!['images'] as List)[_currentImageIndex],
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          color: Colors.grey[800],
+                          child: const Center(
+                            child: Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 100,
+                            ),
+                          ),
+                        ),
                 ),
 
                 // Tap zones for image navigation
@@ -202,11 +281,11 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 16,
             child: Row(
               children: List.generate(
-                (profileData['images'] as List).length,
+                (_profileData?['images'] as List?)?.length ?? 0,
                 (index) => Expanded(
                   child: Container(
                     height: 4,
-                    margin: EdgeInsets.only(right: index < (profileData['images'] as List).length - 1 ? 8 : 0),
+                    margin: EdgeInsets.only(right: index < ((_profileData?['images'] as List?)?.length ?? 1) - 1 ? 8 : 0),
                     decoration: BoxDecoration(
                       color: index == _currentImageIndex ? Colors.white : Colors.white.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(2),
@@ -216,8 +295,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          
 
           // Location Badge
           Positioned(
@@ -235,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      profileData['location'],
+                      _profileData?['location'] ?? 'N/A',
                       style: const TextStyle(
                         color: Colors.black,
                         fontSize: 14,
@@ -260,7 +337,6 @@ class _HomeScreenState extends State<HomeScreen> {
             top: MediaQuery.of(context).size.height * 0.4,
             child: Column(
               children: [
-                
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -282,7 +358,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                
               ],
             ),
           ),
@@ -307,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   child: Text(
-                    profileData['profession'],
+                    _profileData?['profession'] ?? 'N/A',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 14,
@@ -316,13 +391,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
-                
+
                 // Name and Age
                 Row(
                   children: [
                     Text(
-                      '${profileData['name']}, ${profileData['age']}',
+                      '${_profileData?['fullName'] ?? 'User'}, ${_profileData?['age'] ?? 'N/A'}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -346,10 +420,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Bio
                 Text(
-                  profileData['bio'],
+                  _profileData?['bio'] ?? 'No bio available.',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
                     fontSize: 16,
@@ -401,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ),
-                        
+
                         // Messages with notification
                         GestureDetector(
                           onTap: () {
@@ -442,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        
+
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -456,14 +530,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             size: 24,
                           ),
                         ),
-                        
+
                         SvgPicture.asset(
                           'assets/notch_icon.svg',
                           width: 24,
                           height: 24,
                           colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                         ),
-                        
+
                         GestureDetector(
                           onTap: () {
                             Navigator.push(

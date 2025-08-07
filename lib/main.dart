@@ -106,15 +106,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
           print('📝 Onboarding completed: $onboardingCompleted');
           print('🔐 Verification completed: $verificationCompleted');
           
+          final profileCompletionPercentage = userData['profileCompletionPercentage'] ?? 0;
+          print('📊 Profile completion: $profileCompletionPercentage%');
+
           if (onboardingCompleted == true && verificationCompleted == true) {
-            print('✅ User has completed onboarding AND verification - navigating to home screen');
-            // Initialize notifications for the logged-in user
-            FirebaseService().initNotifications();
-            if (mounted) {
-              setState(() {
-                _homeWidget = const HomeScreen();
-                _isLoading = false;
-              });
+            // User is onboarded and verified, now check profile completion
+            if (profileCompletionPercentage == 100) {
+              print('✅ Profile complete - navigating to home screen');
+              FirebaseService().initNotifications();
+              if (mounted) {
+                setState(() {
+                  _homeWidget = const HomeScreen(isLocked: false);
+                  _isLoading = false;
+                });
+              }
+            } else {
+              print('🔒 Profile incomplete - showing locked home screen');
+              if (mounted) {
+                setState(() {
+                  _homeWidget = const HomeScreen(isLocked: true);
+                  _isLoading = false;
+                });
+              }
             }
             return;
           } else if (onboardingCompleted == true && verificationCompleted != true) {
