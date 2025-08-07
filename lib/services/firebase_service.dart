@@ -4,6 +4,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
+import '../models/chat_message.dart';
+import '../models/chat_room.dart';
+
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
   factory FirebaseService() => _instance;
@@ -16,26 +19,74 @@ class FirebaseService {
   // Get current user ID
   String? get currentUserId => _auth.currentUser?.uid;
 
-  // Initialize user profile document when they start onboarding
+  // CHAT METHODS
+
+  Future<String> getOrCreateChatRoom(String otherUserId) async {
+    if (currentUserId == null) throw Exception('User not authenticated');
+
+    List<String> participants = [currentUserId!, otherUserId];
+    participants.sort();
+    String roomId = participants.join('_');
+
+    final roomDoc = _firestore.collection('chat_rooms').doc(roomId);
+    final snapshot = await roomDoc.get();
+
+    if (!snapshot.exists) {
+      final newRoom = ChatRoom(
+        roomId: roomId,
+        participantIds: participants,
+        lastMessageTimestamp: Timestamp.now(),
+      );
+      await roomDoc.set(newRoom.toFirestore());
+    }
+
+    return roomId;
+  }
+
+  Future<void> sendMessage(String roomId, ChatMessage message) async {
+    if (currentUserId == null) throw Exception('User not authenticated');
+
+    final roomRef = _firestore.collection('chat_rooms').doc(roomId);
+    final messageRef = roomRef.collection('messages');
+
+    await messageRef.add(message.toFirestore());
+
+    await roomRef.update({
+      'lastMessage': message.content,
+      'lastMessageTimestamp': message.timestamp,
+      'lastMessageSenderId': message.senderId,
+    });
+  }
+
+  Stream<List<ChatMessage>> getMessagesStream(String roomId) {
+    return _firestore
+        .collection('chat_rooms')
+        .doc(roomId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => ChatMessage.fromFirestore(doc)).toList();
+    });
+  }
+
+
+  // USER PROFILE METHODS
+
   Future<void> initializeUserProfile() async {
     if (currentUserId == null) return;
 
     try {
-      // First check if user profile already exists
       final userDoc = await _firestore.collection('users').doc(currentUserId).get();
       
       if (userDoc.exists) {
         print('✅ User profile already exists for: $currentUserId');
-        
-        // Only update basic fields, preserve onboarding status
         await _firestore.collection('users').doc(currentUserId).update({
           'lastUpdated': FieldValue.serverTimestamp(),
           'lastSignIn': FieldValue.serverTimestamp(),
         });
-        
         print('✅ User profile updated with last sign-in time');
       } else {
-        // Create new profile only for completely new users
         await _firestore.collection('users').doc(currentUserId).set({
           'userId': currentUserId,
           'createdAt': FieldValue.serverTimestamp(),
@@ -45,7 +96,6 @@ class FirebaseService {
           'lastUpdated': FieldValue.serverTimestamp(),
           'lastSignIn': FieldValue.serverTimestamp(),
         });
-        
         print('✅ New user profile created for: $currentUserId');
       }
     } catch (e) {
@@ -54,35 +104,29 @@ class FirebaseService {
     }
   }
 
-  Future<List<QueryDocumentSnapshot>> getPotentialMatches(
-      {required String currentUserGender}) async {
+  Future<List<QueryDocumentSnapshot>> getPotentialMatches({required String currentUserGender}) async {
     if (currentUserId == null) return [];
 
     try {
       String targetGender = currentUserGender == 'male' ? 'female' : 'male';
-
       print('🔍 Fetching potential matches for gender: $targetGender');
-
       final querySnapshot = await _firestore
           .collection('users')
           .where('gender', isEqualTo: targetGender)
           .where('isActive', isEqualTo: true)
-          .where('userId', isNotEqualTo: currentUserId) // More efficient to filter in the query
+          .where('userId', isNotEqualTo: currentUserId)
           .limit(20)
           .get();
-
       print('✅ Fetched ${querySnapshot.docs.length} potential matches.');
       return querySnapshot.docs;
     } catch (e) {
       print('❌ Error fetching potential matches: $e');
-      return []; // Return empty list on error
+      return [];
     }
   }
 
-  // Update name step
   Future<void> updateNameStep(String fullName) async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('users').doc(currentUserId).update({
         'fullName': fullName,
@@ -90,7 +134,6 @@ class FirebaseService {
         'profileCompletionPercentage': _calculateCompletionPercentage(['name']),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      
       print('✅ Name updated: $fullName');
     } catch (e) {
       print('❌ Error updating name: $e');
@@ -98,10 +141,8 @@ class FirebaseService {
     }
   }
 
-  // Update gender step
   Future<void> updateGenderStep(String gender) async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('users').doc(currentUserId).update({
         'gender': gender,
@@ -109,7 +150,6 @@ class FirebaseService {
         'profileCompletionPercentage': _calculateCompletionPercentage(['name', 'gender']),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      
       print('✅ Gender updated: $gender');
     } catch (e) {
       print('❌ Error updating gender: $e');
@@ -117,10 +157,8 @@ class FirebaseService {
     }
   }
 
-  // Update age step
   Future<void> updateAgeStep(int age) async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('users').doc(currentUserId).update({
         'age': age,
@@ -128,7 +166,6 @@ class FirebaseService {
         'profileCompletionPercentage': _calculateCompletionPercentage(['name', 'gender', 'age']),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      
       print('✅ Age updated: $age');
     } catch (e) {
       print('❌ Error updating age: $e');
@@ -136,10 +173,8 @@ class FirebaseService {
     }
   }
 
-  // Update profession step
   Future<void> updateProfessionStep(String profession) async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('users').doc(currentUserId).update({
         'profession': profession,
@@ -147,7 +182,6 @@ class FirebaseService {
         'profileCompletionPercentage': _calculateCompletionPercentage(['name', 'gender', 'age', 'profession']),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      
       print('✅ Profession updated: $profession');
     } catch (e) {
       print('❌ Error updating profession: $e');
@@ -155,10 +189,8 @@ class FirebaseService {
     }
   }
 
-  // Update photos step
   Future<void> updatePhotosStep(List<String> photoUrls) async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('users').doc(currentUserId).update({
         'photos': photoUrls,
@@ -167,7 +199,6 @@ class FirebaseService {
         'profileCompletionPercentage': _calculateCompletionPercentage(['name', 'gender', 'age', 'profession', 'photos']),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      
       print('✅ Photos updated: ${photoUrls.length} photos');
     } catch (e) {
       print('❌ Error updating photos: $e');
@@ -175,10 +206,8 @@ class FirebaseService {
     }
   }
 
-  // Update bio step
   Future<void> updateBioStep(String bio) async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('users').doc(currentUserId).update({
         'bio': bio,
@@ -186,7 +215,6 @@ class FirebaseService {
         'profileCompletionPercentage': _calculateCompletionPercentage(['name', 'gender', 'age', 'profession', 'photos', 'bio']),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      
       print('✅ Bio updated: ${bio.substring(0, bio.length > 50 ? 50 : bio.length)}...');
     } catch (e) {
       print('❌ Error updating bio: $e');
@@ -194,10 +222,8 @@ class FirebaseService {
     }
   }
 
-  // Update location step
   Future<void> updateLocationStep(String location, {double? latitude, double? longitude}) async {
     if (currentUserId == null) return;
-
     try {
       Map<String, dynamic> locationData = {
         'location': location,
@@ -205,13 +231,10 @@ class FirebaseService {
         'profileCompletionPercentage': _calculateCompletionPercentage(['name', 'gender', 'age', 'profession', 'photos', 'bio', 'location']),
         'lastUpdated': FieldValue.serverTimestamp(),
       };
-
       if (latitude != null && longitude != null) {
         locationData['coordinates'] = GeoPoint(latitude, longitude);
       }
-
       await _firestore.collection('users').doc(currentUserId).update(locationData);
-      
       print('✅ Location updated: $location');
     } catch (e) {
       print('❌ Error updating location: $e');
@@ -219,24 +242,17 @@ class FirebaseService {
     }
   }
 
-  // Complete onboarding
   Future<void> completeOnboarding() async {
     if (currentUserId == null) return;
-
     try {
-      // Get the current user data first
-      final userDoc =
-          await _firestore.collection('users').doc(currentUserId).get();
+      final userDoc = await _firestore.collection('users').doc(currentUserId).get();
       if (!userDoc.exists) {
         print('❌ User document does not exist for completion.');
         return;
       }
-
       final data = userDoc.data() as Map<String, dynamic>;
-
-      // Calculate completion from the data map
       int completedFields = 0;
-      int totalFields = 7; // name, gender, age, profession, photos, bio, location
+      int totalFields = 7;
       if (data['nameCompleted'] == true) completedFields++;
       if (data['genderCompleted'] == true) completedFields++;
       if (data['ageCompleted'] == true) completedFields++;
@@ -244,18 +260,15 @@ class FirebaseService {
       if (data['photosCompleted'] == true) completedFields++;
       if (data['bioCompleted'] == true) completedFields++;
       if (data['locationCompleted'] == true) completedFields++;
-
       final percentage = ((completedFields / totalFields) * 100).round();
-
       await _firestore.collection('users').doc(currentUserId).update({
         'onboardingCompleted': true,
-        'profileCompletionPercentage': percentage, // Use calculated percentage
+        'profileCompletionPercentage': percentage,
         'onboardingCompletedAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'isActive': true,
         'profileStatus': 'active',
       });
-
       print('✅ Onboarding completed successfully! Profile is $percentage% complete.');
     } catch (e) {
       print('❌ Error completing onboarding: $e');
@@ -263,22 +276,14 @@ class FirebaseService {
     }
   }
 
-  // Upload photo to Firebase Storage
   Future<String> uploadPhoto(File photoFile, int photoIndex) async {
     if (currentUserId == null) throw Exception('User not authenticated');
-
     try {
       final String fileName = 'photo_${photoIndex}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final Reference ref = _storage
-          .ref()
-          .child('profile_images')
-          .child(currentUserId!)
-          .child(fileName);
-
+      final Reference ref = _storage.ref().child('profile_images').child(currentUserId!).child(fileName);
       final UploadTask uploadTask = ref.putFile(photoFile);
       final TaskSnapshot snapshot = await uploadTask;
       final String downloadUrl = await snapshot.ref.getDownloadURL();
-      
       print('✅ Photo uploaded: $fileName');
       return downloadUrl;
     } catch (e) {
@@ -287,33 +292,23 @@ class FirebaseService {
     }
   }
 
-  // Upload multiple photos
   Future<List<String>> uploadMultiplePhotos(List<File> photoFiles) async {
     List<String> photoUrls = [];
-    
     for (int i = 0; i < photoFiles.length; i++) {
       try {
         final String url = await uploadPhoto(photoFiles[i], i);
         photoUrls.add(url);
       } catch (e) {
         print('❌ Error uploading photo $i: $e');
-        // Continue with other photos even if one fails
       }
     }
-    
     return photoUrls;
   }
 
-  // Get user profile data
   Future<Map<String, dynamic>?> getUserProfile() async {
     if (currentUserId == null) return null;
-
     try {
-      final DocumentSnapshot doc = await _firestore
-          .collection('users')
-          .doc(currentUserId)
-          .get();
-      
+      final DocumentSnapshot doc = await _firestore.collection('users').doc(currentUserId).get();
       if (doc.exists) {
         return doc.data() as Map<String, dynamic>?;
       }
@@ -324,10 +319,8 @@ class FirebaseService {
     }
   }
 
-  // Update user profile with a map of data
   Future<void> updateUserProfile(Map<String, dynamic> data) async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('users').doc(currentUserId).update(data);
       print('✅ User profile updated successfully');
@@ -337,25 +330,18 @@ class FirebaseService {
     }
   }
 
-  // Listen to user profile changes
   Stream<DocumentSnapshot> getUserProfileStream() {
     if (currentUserId == null) {
       return const Stream.empty();
     }
-    
-    return _firestore
-        .collection('users')
-        .doc(currentUserId)
-        .snapshots();
+    return _firestore.collection('users').doc(currentUserId).snapshots();
   }
 
-  // Calculate completion percentage based on completed steps
   int _calculateCompletionPercentage(List<String> completedSteps) {
     const List<String> allSteps = ['name', 'gender', 'age', 'profession', 'photos', 'bio', 'location'];
     return ((completedSteps.length / allSteps.length) * 100).round();
   }
 
-  // Save onboarding progress (for recovery if user closes app)
   Future<void> saveOnboardingProgress({
     required int currentStep,
     String? tempName,
@@ -366,37 +352,28 @@ class FirebaseService {
     String? tempLocation,
   }) async {
     if (currentUserId == null) return;
-
     try {
       Map<String, dynamic> progressData = {
         'onboardingCurrentStep': currentStep,
         'lastUpdated': FieldValue.serverTimestamp(),
       };
-
-      // Add temporary data if provided
       if (tempName != null) progressData['tempName'] = tempName;
       if (tempGender != null) progressData['tempGender'] = tempGender;
       if (tempAge != null) progressData['tempAge'] = tempAge;
       if (tempProfession != null) progressData['tempProfession'] = tempProfession;
       if (tempBio != null) progressData['tempBio'] = tempBio;
       if (tempLocation != null) progressData['tempLocation'] = tempLocation;
-
       await _firestore.collection('users').doc(currentUserId).update(progressData);
-      
       print('✅ Onboarding progress saved at step: $currentStep');
     } catch (e) {
       print('❌ Error saving onboarding progress: $e');
     }
   }
 
-  // Initialize notifications and save FCM token
   Future<void> initNotifications() async {
     if (currentUserId == null) return;
-
     try {
       final messaging = FirebaseMessaging.instance;
-
-      // Request permission
       final settings = await messaging.requestPermission(
         alert: true,
         announcement: false,
@@ -406,22 +383,17 @@ class FirebaseService {
         provisional: false,
         sound: true,
       );
-
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         print('✅ User granted notification permission');
-
         final fcmToken = await messaging.getToken();
         if (fcmToken != null) {
           print('📱 Got FCM Token: $fcmToken');
-          // Save the token to the user's profile
           await _firestore.collection('users').doc(currentUserId).update({
             'fcmToken': fcmToken,
             'lastUpdated': FieldValue.serverTimestamp(),
           });
           print('✅ FCM token saved to user profile');
         }
-
-        // Listen for token refreshes and save the new one
         messaging.onTokenRefresh.listen((newToken) {
           print('🔄 FCM token refreshed: $newToken');
           _firestore.collection('users').doc(currentUserId).update({
@@ -429,7 +401,6 @@ class FirebaseService {
             'lastUpdated': FieldValue.serverTimestamp(),
           });
         });
-
       } else {
         print('❌ User declined or has not accepted notification permission');
       }
@@ -438,16 +409,14 @@ class FirebaseService {
     }
   }
 
-  // Create user preferences document
   Future<void> createUserPreferences() async {
     if (currentUserId == null) return;
-
     try {
       await _firestore.collection('user_preferences').doc(currentUserId).set({
         'userId': currentUserId,
         'ageRange': {'min': 18, 'max': 35},
-        'maxDistance': 50, // km
-        'showMe': 'everyone', // 'men', 'women', 'everyone'
+        'maxDistance': 50,
+        'showMe': 'everyone',
         'notifications': {
           'newMatches': true,
           'messages': true,
@@ -462,7 +431,6 @@ class FirebaseService {
         'createdAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      
       print('✅ User preferences created');
     } catch (e) {
       print('❌ Error creating user preferences: $e');
