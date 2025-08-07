@@ -199,16 +199,39 @@ class FirebaseService {
     if (currentUserId == null) return;
 
     try {
+      // Get the current user data first
+      final userDoc =
+          await _firestore.collection('users').doc(currentUserId).get();
+      if (!userDoc.exists) {
+        print('❌ User document does not exist for completion.');
+        return;
+      }
+
+      final data = userDoc.data() as Map<String, dynamic>;
+
+      // Calculate completion from the data map
+      int completedFields = 0;
+      int totalFields = 7; // name, gender, age, profession, photos, bio, location
+      if (data['nameCompleted'] == true) completedFields++;
+      if (data['genderCompleted'] == true) completedFields++;
+      if (data['ageCompleted'] == true) completedFields++;
+      if (data['professionCompleted'] == true) completedFields++;
+      if (data['photosCompleted'] == true) completedFields++;
+      if (data['bioCompleted'] == true) completedFields++;
+      if (data['locationCompleted'] == true) completedFields++;
+
+      final percentage = ((completedFields / totalFields) * 100).round();
+
       await _firestore.collection('users').doc(currentUserId).update({
         'onboardingCompleted': true,
-        'profileCompletionPercentage': 100,
+        'profileCompletionPercentage': percentage, // Use calculated percentage
         'onboardingCompletedAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'isActive': true,
         'profileStatus': 'active',
       });
-      
-      print('✅ Onboarding completed successfully!');
+
+      print('✅ Onboarding completed successfully! Profile is $percentage% complete.');
     } catch (e) {
       print('❌ Error completing onboarding: $e');
       rethrow;
