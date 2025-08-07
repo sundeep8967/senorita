@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:senorita/services/supabase_service.dart';
 
 class PhotoUploadStepScreen extends StatefulWidget {
   final VoidCallback onNext;
@@ -20,6 +23,8 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
   List<String> _uploadedPhotos = [];
   final int _minPhotos = 3;
   final int _maxPhotos = 6;
+  bool _isLoading = false;
+  int? _uploadingIndex;
 
   @override
   void initState() {
@@ -27,26 +32,50 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
     _uploadedPhotos = widget.selectedPhotos ?? [];
   }
 
-  void _addPhoto() {
-    if (_uploadedPhotos.length < _maxPhotos) {
-      // Simulate photo selection/upload
+  Future<void> _addPhoto(int index) async {
+    if (_uploadedPhotos.length >= _maxPhotos || _isLoading) return;
+
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
       setState(() {
-        _uploadedPhotos.add('photo_${_uploadedPhotos.length + 1}.jpg');
+        _isLoading = true;
+        _uploadingIndex = index;
       });
-      widget.onPhotosSelected(_uploadedPhotos);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Photo ${_uploadedPhotos.length} added successfully!'),
-          backgroundColor: Colors.blue,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      );
+
+      try {
+        final imageUrl = await SupabaseService.instance.uploadProfileImage(File(pickedFile.path));
+        setState(() {
+          if (_uploadedPhotos.length < _maxPhotos) {
+             _uploadedPhotos.add(imageUrl);
+          }
+          widget.onPhotosSelected(_uploadedPhotos);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Photo ${_uploadedPhotos.length} uploaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+          _uploadingIndex = null;
+        });
+      }
     }
   }
 
   void _removePhoto(int index) {
+    // Note: This doesn't delete from Supabase storage. A real app would need that.
     setState(() {
       _uploadedPhotos.removeAt(index);
     });
@@ -63,32 +92,15 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 40),
-          const Text(
-            'Add your photos',
-            style: TextStyle(
-              color: Color(0xFF1C1C1E),
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          const Text('Add your photos', style: TextStyle(color: Color(0xFF1C1C1E), fontSize: 32, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text(
-            'Upload at least $_minPhotos photos to showcase yourself',
-            style: const TextStyle(
-              color: Color(0xFF8E8E93),
-              fontSize: 16,
-            ),
-          ),
+          Text('Upload at least $_minPhotos photos to showcase yourself', style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 16)),
           const SizedBox(height: 40),
           
-          // Photo Grid
           Expanded(
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.8,
+                crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.8,
               ),
               itemCount: _maxPhotos,
               itemBuilder: (context, index) {
@@ -103,7 +115,6 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
           
           const SizedBox(height: 20),
           
-          // Progress indicator
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -141,23 +152,15 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: _canContinue ? widget.onNext : null,
+              onPressed: _canContinue && !_isLoading ? widget.onNext : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF007AFF),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 elevation: 0,
                 disabledBackgroundColor: const Color(0xFFE5E5EA),
               ),
-              child: const Text(
-                'Continue',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Continue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             ),
           ),
           const SizedBox(height: 40),
@@ -167,25 +170,21 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
   }
 
   Widget _buildPhotoCard(int index, bool hasPhoto) {
+    bool isUploadingThis = _isLoading && _uploadingIndex == index;
+
     return GestureDetector(
-      onTap: hasPhoto ? null : _addPhoto,
+      onTap: hasPhoto || isUploadingThis ? null : () => _addPhoto(index),
       child: Container(
         decoration: BoxDecoration(
-          color: hasPhoto ? const Color(0xFF007AFF) : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: hasPhoto ? const Color(0xFF007AFF) : const Color(0xFFE5E5EA),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: const Color(0xFFE5E5EA), width: 2),
         ),
-        child: hasPhoto ? _buildUploadedPhoto(index) : _buildAddPhotoPlaceholder(),
+        child: isUploadingThis
+            ? const Center(child: CircularProgressIndicator())
+            : hasPhoto
+                ? _buildUploadedPhoto(index)
+                : _buildAddPhotoPlaceholder(),
       ),
     );
   }
@@ -193,38 +192,14 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
   Widget _buildUploadedPhoto(int index) {
     return Stack(
       children: [
-        Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFF007AFF).withOpacity(0.8),
-                const Color(0xFF5856D6).withOpacity(0.8),
-              ],
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.photo,
-                color: Colors.white,
-                size: 40,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Photo ${index + 1}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image.network(
+            _uploadedPhotos[index],
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error, color: Colors.red)),
           ),
         ),
         Positioned(
@@ -233,17 +208,9 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
           child: GestureDetector(
             onTap: () => _removePhoto(index),
             child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 16,
-              ),
+              width: 28, height: 28,
+              decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), borderRadius: BorderRadius.circular(14)),
+              child: const Icon(Icons.close, color: Colors.white, size: 16),
             ),
           ),
         ),
@@ -256,27 +223,12 @@ class _PhotoUploadStepScreenState extends State<PhotoUploadStepScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: const Color(0xFF007AFF).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: const Icon(
-            Icons.add_a_photo,
-            color: Color(0xFF007AFF),
-            size: 24,
-          ),
+          width: 48, height: 48,
+          decoration: BoxDecoration(color: const Color(0xFF007AFF).withOpacity(0.1), borderRadius: BorderRadius.circular(24)),
+          child: const Icon(Icons.add_a_photo, color: Color(0xFF007AFF), size: 24),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Add Photo',
-          style: TextStyle(
-            color: Color(0xFF007AFF),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        const Text('Add Photo', style: TextStyle(color: Color(0xFF007AFF), fontSize: 14, fontWeight: FontWeight.w600)),
       ],
     );
   }
