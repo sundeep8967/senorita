@@ -542,7 +542,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const VerificationScreen()),
+                              MaterialPageRoute(
+                                builder: (context) => ProfileDisplayScreen(
+                                  name: _profileData?['fullName'] ?? '',
+                                  age: _profileData?['age'] ?? 0,
+                                  profession: _profileData?['profession'] ?? '',
+                                  bio: _profileData?['bio'] ?? '',
+                                  location: _profileData?['location'] ?? '',
+                                  images: null,
+                                ),
+                              ),
                             );
                           },
                           child: SvgPicture.asset(
