@@ -87,20 +87,31 @@ class _VerificationScreenState extends State<VerificationScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
       print('🔍 Checking existing verification status for user: ${user.uid}');
-      
-      final userData = await _firebaseService.getUserProfile();
-      if (userData != null && userData['verificationCompleted'] == true) {
-        print('✅ User profile shows verification completed');
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        print('✅ Found existing user data: $data');
         setState(() {
-          _verificationStatus = 'completed';
+          _faceVerified = data['faceVerified'] ?? false;
+          _documentVerified = data['documentVerified'] ?? false;
+          if (_faceVerified && _documentVerified) {
+            _verificationStatus = 'completed';
+          }
         });
-        _showSnackBar('Verification already completed! ✅');
-        
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) _navigateToProfile();
-        });
+
+        if (_faceVerified && _documentVerified) {
+          _showSnackBar('Verification already completed! ✅');
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) _navigateToProfile();
+          });
+        }
       } else {
-        print('📝 User needs to complete verification');
+        print('📝 No existing user data found. User needs to complete verification.');
       }
     } catch (e) {
       print('❌ Error checking verification status: $e');
@@ -229,27 +240,36 @@ class _VerificationScreenState extends State<VerificationScreen>
 
   // Update face verification status in Firebase
   Future<void> _updateFaceVerificationStatus() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      
-      await FirebaseFirestore.instance
-          .collection('user_verifications')
-          .doc(user.uid)
-          .set({
-        'userId': user.uid,
-        'faceVerified': _faceVerified,
-        'facePhotoUploaded': _facePhotoUploaded,
-        'faceImageUrl': _faceImageUrl,
-        'faceVerificationTimestamp': FieldValue.serverTimestamp(),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      
-      print('✅ Face verification status updated in database');
-    } catch (e) {
-      print('❌ Error updating face verification status: $e');
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      print('❌ No authenticated user found');
+      return;
     }
+    
+    print('🔐 Updating face verification status for user: ${user.uid}');
+    
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .update({
+      'faceVerified': _faceVerified,
+      'facePhotoUploaded': _facePhotoUploaded,
+      'faceVerificationTimestamp': FieldValue.serverTimestamp(),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    });
+    
+    print('✅ Face verification status updated in user profile');
+  } catch (e) {
+    print('❌ Error updating face verification status: $e');
+    // For debugging, let's print more details about the error
+    if (e is FirebaseException) {
+      print('Error code: ${e.code}');
+      print('Error message: ${e.message}');
+    }
+    rethrow; // Re-throw the error to handle it in the calling method
   }
+}
 
   // Capture document
   Future<void> _captureDocument() async {
@@ -346,30 +366,53 @@ class _VerificationScreenState extends State<VerificationScreen>
 
   // Update document verification status in Firebase
   Future<void> _updateDocumentVerificationStatus() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      
-      await FirebaseFirestore.instance
-          .collection('user_verifications')
-          .doc(user.uid)
-          .set({
-        'userId': user.uid,
-        'documentVerified': _documentVerified,
-        'documentUploaded': _documentUploaded,
-        'documentType': _selectedDocType,
-        'documentImageUrl': _documentImageUrl,
-        'idVerificationResults': _idVerificationResults,
-        'documentVerificationTimestamp': FieldValue.serverTimestamp(),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      
-      print('✅ Document verification status updated in database');
-    } catch (e) {
-      print('❌ Error updating document verification status: $e');
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      print('❌ No authenticated user found');
+      return;
     }
+    
+    print('🔐 Updating document verification status for user: ${user.uid}');
+    
+    // Create a simplified update data map to avoid potential issues
+    final Map<String, dynamic> updateData = {
+      'documentVerified': _documentVerified,
+      'documentUploaded': _documentUploaded,
+      'documentType': _selectedDocType,
+      'documentVerificationTimestamp': FieldValue.serverTimestamp(),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    };
+    
+    // Only add idVerificationResults if it's not null
+    if (_idVerificationResults != null) {
+      // Create a simplified version of the results to avoid potential issues
+      updateData['idVerificationResults'] = {
+        'documentType': _idVerificationResults!['documentType'],
+        'isValid': _idVerificationResults!['isValid'],
+        'confidence': _idVerificationResults!['confidence'],
+        'verificationTimestamp': _idVerificationResults!['verificationTimestamp'],
+      };
+    }
+    
+    print('📝 Update data: $updateData');
+    
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .update(updateData); // Use update instead of set with merge
+    
+    print('✅ Document verification status updated in user profile');
+  } catch (e) {
+    print('❌ Error updating document verification status: $e');
+    // For debugging, let's print more details about the error
+    if (e is FirebaseException) {
+      print('Error code: ${e.code}');
+      print('Error message: ${e.message}');
+    }
+    rethrow; // Re-throw the error to handle it in the calling method
   }
-
+}
   @override
   void dispose() {
     _tabController.dispose();
@@ -978,7 +1021,7 @@ class _VerificationScreenState extends State<VerificationScreen>
           child: const Text('Retake', style: TextStyle(color: Colors.white)),
         ),
         ElevatedButton(
-          onPressed: _verifyDocument,
+          onPressed: _verifyId,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF007AFF),
             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
@@ -1029,115 +1072,107 @@ class _VerificationScreenState extends State<VerificationScreen>
     }
   }
 
-  Future<void> _verifyDocument() async {
+  Future<void> _verifyId() async {
     if (_selectedDocument == null) return;
-    
+
     setState(() {
       _isLoading = true;
-      _verificationStatus = '';
     });
-    
+
     try {
-      print('🔍 Starting document verification...');
+      print('🔍 Starting ID verification...');
       await _uploadDocumentImage();
       await _performIdVerification();
       await _updateDocumentVerificationStatus();
-      
+
       setState(() {
-        _verificationStatus = '$_selectedDocType verification successful! ✓';
+        _verificationStatus = 'ID verification successful! ✓';
         _documentVerified = true;
         _isLoading = false;
       });
-      
-      _showSnackBar('Document verification completed! ✅');
-      print('✅ Document verification completed');
+
+      _showSnackBar('ID verification completed! ✅');
+      print('✅ ID verification completed');
+
+      if (_faceVerified) {
+        await _submitVerification();
+      }
     } catch (e) {
-      print('❌ Document verification failed: $e');
+      print('❌ ID verification failed: $e');
       setState(() {
-        _verificationStatus = 'Document verification failed. Please try again.';
         _isLoading = false;
       });
-      _showSnackBar('Document verification failed: $e');
+      _showSnackBar('ID verification failed. Please try again.');
     }
   }
 
   Future<void> _submitVerification() async {
-    if (!_canProceed()) {
-      _showSnackBar('Please complete both face and document verification first');
-      return;
+  if (!_canProceed()) {
+    _showSnackBar('Please complete both face and document verification first');
+    return;
+  }
+  
+  setState(() {
+    _isLoading = true;
+  });
+  
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+    
+    print('🔥 Starting verification submission for user: ${user.uid}');
+    
+    String? faceImageUrl = _faceImageUrl;
+    String? documentImageUrl = _documentImageUrl;
+    
+    if (_capturedImage != null && faceImageUrl == null) {
+      print('📸 Uploading face verification image to Supabase...');
+      faceImageUrl = await SupabaseService.instance.uploadFaceImage(File(_capturedImage!.path));
+      print('✅ Face image uploaded to Supabase: $faceImageUrl');
     }
     
-    setState(() {
-      _isLoading = true;
+    if (_selectedDocument != null && documentImageUrl == null) {
+      print('📄 Uploading document verification image to Supabase...');
+      documentImageUrl = await SupabaseService.instance.uploadDocumentImage(_selectedDocument!, _selectedDocType);
+      print('✅ Document image uploaded to Supabase: $documentImageUrl');
+    }
+    
+    print('💾 Saving verification data to Firestore...');
+    
+    // Use update instead of set with merge
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .update({
+      'faceVerified': _faceVerified,
+      'documentVerified': _documentVerified,
+      'documentType': _selectedDocType,
+      'verificationStatus': 'completed',
+      'isVerified': true,
+      'verificationCompleted': true,
+      'verificationCompletedAt': FieldValue.serverTimestamp(),
+      'lastUpdated': FieldValue.serverTimestamp(),
     });
     
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-      
-      print('🔥 Starting verification submission for user: ${user.uid}');
-      
-      String? faceImageUrl = _faceImageUrl;
-      String? documentImageUrl = _documentImageUrl;
-      
-      if (_capturedImage != null && faceImageUrl == null) {
-        print('📸 Uploading face verification image to Supabase...');
-        faceImageUrl = await SupabaseService.instance.uploadFaceImage(File(_capturedImage!.path));
-        print('✅ Face image uploaded to Supabase: $faceImageUrl');
-      }
-      
-      if (_selectedDocument != null && documentImageUrl == null) {
-        print('📄 Uploading document verification image to Supabase...');
-        documentImageUrl = await SupabaseService.instance.uploadDocumentImage(_selectedDocument!, _selectedDocType);
-        print('✅ Document image uploaded to Supabase: $documentImageUrl');
-      }
-      
-      print('💾 Saving verification data to Firestore...');
-      await FirebaseFirestore.instance
-          .collection('user_verifications')
-          .doc(user.uid)
-          .set({
-        'userId': user.uid,
-        'faceVerified': _faceVerified,
-        'documentVerified': _documentVerified,
-        'faceImageUrl': faceImageUrl,
-        'documentType': _selectedDocType,
-        'documentImageUrl': documentImageUrl,
-        'verificationStatus': 'completed',
-        'submittedAt': FieldValue.serverTimestamp(),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      });
-      
-      print('👤 Updating user profile verification status...');
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
-        'isVerified': true,
-        'verificationCompleted': true,
-        'verificationCompletedAt': FieldValue.serverTimestamp(),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      });
-
-      print('✅ Verification data saved successfully!');
-      _showSnackBar('Verification completed successfully! Welcome to Senorita! 🎉');
-      
-      if (mounted) {
-        await Future.delayed(const Duration(seconds: 2));
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      print('❌ Verification submission failed: $e');
-      _showSnackBar('Submission failed: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+    print('✅ Verification data saved successfully!');
+    _showSnackBar('Verification completed successfully! Welcome to Senorita! 🎉');
+    
+    if (mounted) {
+      await Future.delayed(const Duration(seconds: 2));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
     }
+  } catch (e) {
+    print('❌ Verification submission failed: $e');
+    _showSnackBar('Submission failed: $e');
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   bool _canProceed() {
     return _faceVerified && _documentVerified;
@@ -1180,7 +1215,7 @@ class _VerificationScreenState extends State<VerificationScreen>
       if (_documentVerified) {
         return _submitVerification;
       } else if (_selectedDocument != null) {
-        return _verifyDocument;
+        return _verifyId;
       } else {
         return null;
       }
