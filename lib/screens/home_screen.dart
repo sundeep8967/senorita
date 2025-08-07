@@ -239,7 +239,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     GestureDetector(child: SvgPicture.asset('assets/custom_icon.svg', width: 28, height: 28, colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))),
-                    GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatScreen())), child: Icon(Icons.forum, color: Colors.white.withOpacity(0.6), size: 24)),
+                    GestureDetector(
+                      onTap: () {
+                        if (_potentialMatches.isNotEmpty) {
+                          final currentMatch = _potentialMatches[_currentMatchIndex];
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                otherUserId: currentMatch.userId,
+                                otherUserName: currentMatch.fullName ?? 'Chat',
+                                otherUserAvatar: currentMatch.photos?.isNotEmpty == true
+                                    ? currentMatch.photos![0]
+                                    : '',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      child: Icon(Icons.forum, color: Colors.white.withOpacity(0.6), size: 24)),
                     GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen())), child: Icon(Icons.notifications, color: Colors.white.withOpacity(0.6), size: 24)),
                     GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChooseCafeScreen())), child: _buildActionButton(Icons.whatshot)),
                     GestureDetector(
