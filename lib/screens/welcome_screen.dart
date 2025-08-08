@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:senorita/services/debug_firebase_service.dart';
 import 'application_flow_screen.dart';
 import 'home_screen.dart';
 
@@ -716,20 +714,6 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
             ),
           ],
         ),
-        if (kDebugMode) ...[
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              await DebugFirebaseService.createTestUserProfile();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Test user created successfully!'),
-                ),
-              );
-            },
-            child: const Text('Create Test User'),
-          ),
-        ],
       ],
     );
   }
