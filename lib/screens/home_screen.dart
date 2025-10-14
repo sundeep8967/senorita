@@ -247,6 +247,55 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // Right Side Action Buttons (Fire & Timer)
+          Positioned(
+            right: 16,
+            top: MediaQuery.of(context).size.height * 0.4,
+            child: Column(
+              children: [
+                // Fire button (Cafe selection)
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        opaque: false,
+                        pageBuilder: (context, _, __) => const ChooseCafeScreen(),
+                      ),
+                    );
+                  },
+                  child: _buildActionButton(Icons.whatshot),
+                ),
+                const SizedBox(height: 16),
+                
+                // Timer/Alarm button
+                GestureDetector(
+                  onTap: () {
+                    // TODO: Implement timer/alarm functionality
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Timer feature coming soon!'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  },
+                  child: _buildActionButton(Icons.timer),
+                ),
+                const SizedBox(height: 16),
+                
+                // Decorative dot (like in reference code)
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
