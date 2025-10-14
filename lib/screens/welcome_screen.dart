@@ -653,67 +653,6 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
         ),
         
         const SizedBox(height: 30),
-        
-        // Sign In section for existing members
-        Column(
-          children: [
-            const Text(
-              'Already a member?',
-              style: TextStyle(
-                color: Color(0xFF6C757D),
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  _signInWithGoogle();
-                },
-                icon: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage('https://developers.google.com/identity/images/g-logo.png'),
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                label: const Text(
-                  'Continue with Google',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF495057),
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF1C1C1E),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
