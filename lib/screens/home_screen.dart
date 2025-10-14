@@ -250,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Right Side Action Buttons (Fire & Timer)
           Positioned(
             right: 16,
-            top: MediaQuery.of(context).size.height * 0.4,
+            top: MediaQuery.of(context).size.height * 0.7,
             child: Column(
               children: [
                 // Fire button (Cafe selection)
@@ -268,20 +268,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Timer/Alarm button
-                GestureDetector(
-                  onTap: () {
-                    // TODO: Implement timer/alarm functionality
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Timer feature coming soon!'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  },
-                  child: _buildActionButton(Icons.timer),
-                ),
-                const SizedBox(height: 16),
                 
                 // Decorative dot (like in reference code)
                 Container(
@@ -329,7 +315,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       child: Icon(Icons.forum, color: Colors.white.withOpacity(0.6), size: 24)),
                     GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen())), child: Icon(Icons.notifications, color: Colors.white.withOpacity(0.6), size: 24)),
-                    GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChooseCafeScreen())), child: _buildActionButton(Icons.whatshot)),
+                    GestureDetector(
+                      onTap: () {
+                        // TODO: Implement alarm/timer functionality
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Alarm feature coming soon!'),
+                            backgroundColor: Colors.blue,
+                          ),
+                        );
+                      },
+                      child: SvgPicture.asset(
+                        'assets/notch_icon.svg',
+                        width: 24,
+                        height: 24,
+                        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileDisplayScreen(
                         name: _userProfile?.fullName ?? '', age: _userProfile?.age ?? 0,
@@ -389,17 +391,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActionButton(IconData icon) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        color: Colors.white,
-        size: 24,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
       ),
     );
   }
