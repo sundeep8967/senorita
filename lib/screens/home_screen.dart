@@ -4,6 +4,7 @@ import 'package:senorita/screens/profile_display_screen.dart';
 import 'package:senorita/services/firebase_service.dart';
 import 'package:senorita/services/supabase_service.dart';
 import 'package:senorita/screens/chat_screen.dart';
+import 'package:senorita/screens/chat_list_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
 import 'package:senorita/screens/choose_cafe_screen.dart';
 import 'package:flutter/services.dart';
@@ -352,6 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Fire button (Cafe selection)
                 GestureDetector(
                   onTap: () {
+                    HapticFeedback.lightImpact();
                     Navigator.push(
                       context,
                       PageRouteBuilder(
@@ -360,18 +362,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   },
-                  child: _buildActionButton(Icons.whatshot),
+                  child: _buildBlurButton(Icons.local_fire_department, Colors.white),
                 ),
                 const SizedBox(height: 16),
                 
-                
-                // Decorative dot (like in reference code)
+                // Decorative dot
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 6,
+                  height: 6,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ],
@@ -394,20 +395,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     GestureDetector(child: SvgPicture.asset('assets/custom_icon.svg', width: 28, height: 28, colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))),
                     GestureDetector(
                       onTap: () {
-                        if (_potentialMatches.isNotEmpty) {
-                          final currentMatch = _potentialMatches[_currentMatchIndex];
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                otherUserId: currentMatch.userId,
-                                otherUserName: currentMatch.fullName ?? 'Chat',
-                                otherUserAvatar: _getUserImage(currentMatch.userId) ?? 
-                                    (currentMatch.photos?.isNotEmpty == true ? currentMatch.photos![0] : ''),
-                              ),
-                            ),
-                          );
-                        }
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ChatListScreen(),
+                          ),
+                        );
                       },
                       child: Icon(Icons.forum, color: Colors.white.withOpacity(0.6), size: 24)),
                     GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen())), child: Icon(Icons.notifications, color: Colors.white.withOpacity(0.6), size: 24)),
@@ -501,6 +495,38 @@ class _HomeScreenState extends State<HomeScreen> {
             icon,
             color: Colors.white,
             size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlurButton(IconData icon, Color iconColor) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 28,
+              ),
+            ),
           ),
         ),
       ),

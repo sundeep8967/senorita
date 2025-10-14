@@ -111,8 +111,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
           if (onboardingCompleted == true && verificationCompleted == true) {
             // User is onboarded and verified, now check profile completion
-            if (profileCompletionPercentage == 100) {
-              print('✅ Profile complete - navigating to home screen');
+            // Check if essential profile data exists instead of just completion percentage
+            bool hasEssentialData = _hasEssentialProfileData(userData);
+            
+            if (hasEssentialData) {
+              print('✅ Profile has essential data - navigating to home screen');
               FirebaseService().initNotifications();
               if (mounted) {
                 setState(() {
@@ -121,7 +124,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 });
               }
             } else {
-              print('🔒 Profile incomplete - showing locked home screen');
+              print('🔒 Profile missing essential data - showing locked home screen');
               if (mounted) {
                 setState(() {
                   _homeWidget = const HomeScreen(isLocked: true);
@@ -168,6 +171,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
         });
       }
     }
+  }
+
+  // Check if user has essential profile data (instead of completion flags)
+  bool _hasEssentialProfileData(Map<String, dynamic> userData) {
+    // Check for essential data that should exist for the app to function
+    bool hasName = userData['fullName'] != null && userData['fullName'].toString().trim().isNotEmpty;
+    bool hasAge = userData['age'] != null && userData['age'] is int && userData['age'] > 0;
+    bool hasGender = userData['gender'] != null && userData['gender'].toString().trim().isNotEmpty;
+    
+    // Optional but recommended fields
+    bool hasLocation = userData['location'] != null && userData['location'].toString().trim().isNotEmpty;
+    bool hasProfession = userData['profession'] != null && userData['profession'].toString().trim().isNotEmpty;
+    
+    print('📊 Profile data check:');
+    print('   Name: $hasName (${userData['fullName']})');
+    print('   Age: $hasAge (${userData['age']})');
+    print('   Gender: $hasGender (${userData['gender']})');
+    print('   Location: $hasLocation (${userData['location']})');
+    print('   Profession: $hasProfession (${userData['profession']})');
+    
+    // Require at least name, age, and gender to unlock
+    return hasName && hasAge && hasGender;
   }
 
   @override
