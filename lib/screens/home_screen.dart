@@ -30,17 +30,37 @@ class _HomeScreenState extends State<HomeScreen> {
   
   // Cache for user images fetched from Supabase
   Map<String, List<String>> _userImagesCache = {};
+  
+  // Image slideshow variables
+  int _currentImageIndex = 0;
+  Timer? _imageTimer;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _loadData();
+    _startImageSlideshow();
+  }
+
+  void _startImageSlideshow() {
+    _imageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted && _potentialMatches.isNotEmpty) {
+        final currentMatch = _potentialMatches[_currentMatchIndex];
+        final images = _userImagesCache[currentMatch.userId] ?? currentMatch.photos ?? [];
+        if (images.isNotEmpty) {
+          setState(() {
+            _currentImageIndex = (_currentImageIndex + 1) % images.length;
+          });
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     _pageController?.dispose();
+    _imageTimer?.cancel();
     super.dispose();
   }
 
@@ -190,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onPageChanged: (index) {
         setState(() {
           _currentMatchIndex = index;
+          _currentImageIndex = 0; // Reset image index when switching users
         });
       },
       itemBuilder: (context, index) {
@@ -212,6 +233,63 @@ class _HomeScreenState extends State<HomeScreen> {
             colors: [Colors.transparent, Colors.transparent, Colors.black.withOpacity(0.8)],
             stops: const [0.0, 0.6, 1.0],
           )))),
+
+          // Image Progress Indicators
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 5,
+            left: 16,
+            right: 16,
+            child: Row(
+              children: List.generate(
+                (_userImagesCache[currentMatch.userId] ?? currentMatch.photos ?? []).length,
+                (index) => Expanded(
+                  child: Container(
+                    height: 4,
+                    margin: EdgeInsets.only(right: index < (_userImagesCache[currentMatch.userId] ?? currentMatch.photos ?? []).length - 1 ? 8 : 0),
+                    decoration: BoxDecoration(
+                      color: index == _currentImageIndex ? Colors.white : Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Location Badge
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      currentMatch.location ?? 'Unknown Location',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.location_on,
+                      color: Colors.black,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
 
           Positioned(
             bottom: 100, left: 24, right: 24,
@@ -351,9 +429,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildUserImage(UserProfile currentMatch) {
-    final supabaseImageUrl = _getUserImage(currentMatch.userId);
-    final fallbackImageUrl = currentMatch.photos?.isNotEmpty == true ? currentMatch.photos![0] : null;
-    final imageUrl = supabaseImageUrl ?? fallbackImageUrl;
+    final images = _userImagesCache[currentMatch.userId] ?? currentMatch.photos ?? [];
+    final imageUrl = images.isNotEmpty ? images[_currentImageIndex % images.length] : null;
     
     if (imageUrl != null) {
       return Image.network(
