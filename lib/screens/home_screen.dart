@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:senorita/models/user_profile.dart';
 import 'package:senorita/screens/profile_display_screen.dart';
 import 'package:senorita/services/firebase_service.dart';
+import 'package:senorita/services/supabase_service.dart';
 import 'package:senorita/screens/chat_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
 import 'package:senorita/screens/choose_cafe_screen.dart';
@@ -20,11 +21,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseService _firebaseService = FirebaseService();
+  final SupabaseService _supabaseService = SupabaseService.instance;
   UserProfile? _userProfile;
   List<UserProfile> _potentialMatches = [];
   int _currentMatchIndex = 0;
   bool _isLoading = true;
   PageController? _pageController;
+  
+  // Cache for user images fetched from Supabase
+  Map<String, List<String>> _userImagesCache = {};
 
   @override
   void initState() {
@@ -55,6 +60,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (currentUserProfile.gender != null && currentUserProfile.gender!.isNotEmpty) {
       final matchDocs = await _firebaseService.getPotentialMatches(currentUserGender: currentUserProfile.gender!);
       matches = matchDocs.map((doc) => UserProfile.fromFirestore(doc)).toList();
+      
+      // Fetch fresh images from Supabase for each match
+      for (final match in matches) {
+        await _fetchUserImages(match.userId);
+      }
     }
 
     setState(() {
@@ -62,6 +72,28 @@ class _HomeScreenState extends State<HomeScreen> {
       _potentialMatches = matches;
       _isLoading = false;
     });
+  }
+
+  Future<void> _fetchUserImages(String userId) async {
+    try {
+      print('📸 Fetching fresh images from Supabase for user: $userId');
+      final userImages = await _supabaseService.getUserImages(userId);
+      final personalImages = userImages['personal'] ?? [];
+      
+      if (personalImages.isNotEmpty) {
+        _userImagesCache[userId] = personalImages;
+        print('✅ Cached ${personalImages.length} images for user: $userId');
+      } else {
+        print('ℹ️ No images found for user: $userId');
+      }
+    } catch (e) {
+      print('❌ Error fetching images for user $userId: $e');
+    }
+  }
+
+  String? _getUserImage(String userId) {
+    final images = _userImagesCache[userId];
+    return images?.isNotEmpty == true ? images!.first : null;
   }
 
   @override
@@ -173,17 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: (currentMatch.photos?.isNotEmpty ?? false)
-                ? Image.network(currentMatch.photos![0], fit: BoxFit.cover, // Always show first photo
-                    errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[800], child: const Center(child: Icon(Icons.broken_image, color: Colors.white, size: 100))),
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
-                      ));
-                    },
-                  )
-                : Container(color: Colors.grey[800], child: const Center(child: Icon(Icons.person, color: Colors.white, size: 100))),
+            child: _buildUserImage(currentMatch),
           ),
           Positioned.fill(child: Container(decoration: BoxDecoration(gradient: LinearGradient(
             begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -249,9 +271,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               builder: (context) => ChatScreen(
                                 otherUserId: currentMatch.userId,
                                 otherUserName: currentMatch.fullName ?? 'Chat',
-                                otherUserAvatar: currentMatch.photos?.isNotEmpty == true
-                                    ? currentMatch.photos![0]
-                                    : '',
+                                otherUserAvatar: _getUserImage(currentMatch.userId) ?? 
+                                    (currentMatch.photos?.isNotEmpty == true ? currentMatch.photos![0] : ''),
                               ),
                             ),
                           );
@@ -276,6 +297,46 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildUserImage(UserProfile currentMatch) {
+    final supabaseImageUrl = _getUserImage(currentMatch.userId);
+    final fallbackImageUrl = currentMatch.photos?.isNotEmpty == true ? currentMatch.photos![0] : null;
+    final imageUrl = supabaseImageUrl ?? fallbackImageUrl;
+    
+    if (imageUrl != null) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Failed to load image: $imageUrl');
+          return Container(
+            color: Colors.grey[800],
+            child: const Center(
+              child: Icon(Icons.broken_image, color: Colors.white, size: 100),
+            ),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null 
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! 
+                  : null,
+              color: Colors.white,
+            ),
+          );
+        },
+      );
+    } else {
+      return Container(
+        color: Colors.grey[800],
+        child: const Center(
+          child: Icon(Icons.person, color: Colors.white, size: 100),
+        ),
+      );
+    }
   }
 
   Widget _buildActionButton(IconData icon) {

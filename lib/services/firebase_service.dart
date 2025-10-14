@@ -107,21 +107,58 @@ class FirebaseService {
   Future<List<QueryDocumentSnapshot>> getPotentialMatches({required String currentUserGender}) async {
     if (currentUserId == null) return [];
 
+    // Define targetGender at the beginning so it's available in all scopes
+    // Handle case sensitivity - convert to proper case to match Firebase data
+    String targetGender = currentUserGender.toLowerCase() == 'male' ? 'Female' : 'Male';
+
     try {
-      String targetGender = currentUserGender == 'male' ? 'female' : 'male';
       print('🔍 Fetching potential matches for gender: $targetGender');
+      
+      // First, get all active users with completed onboarding and target gender
       final querySnapshot = await _firestore
           .collection('users')
           .where('gender', isEqualTo: targetGender)
           .where('isActive', isEqualTo: true)
-          .where('userId', isNotEqualTo: currentUserId)
-          .limit(20)
+          .where('onboardingCompleted', isEqualTo: true)
+          .limit(50)  // Get more documents to filter client-side
           .get();
-      print('✅ Fetched ${querySnapshot.docs.length} potential matches.');
-      return querySnapshot.docs;
+      
+      // Filter out current user client-side to avoid Firestore permission issues
+      final filteredDocs = querySnapshot.docs
+          .where((doc) => doc.id != currentUserId)
+          .take(20)
+          .toList();
+      
+      print('✅ Fetched ${filteredDocs.length} potential matches.');
+      return filteredDocs;
     } catch (e) {
       print('❌ Error fetching potential matches: $e');
-      return [];
+      // Fallback: try a simpler query without the complex filters
+      try {
+        print('🔄 Trying fallback query...');
+        final fallbackSnapshot = await _firestore
+            .collection('users')
+            .where('isActive', isEqualTo: true)
+            .where('onboardingCompleted', isEqualTo: true)
+            .limit(50)
+            .get();
+        
+        // Filter by gender and exclude current user client-side
+        final fallbackFiltered = fallbackSnapshot.docs
+            .where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final userGender = data['gender']?.toString();
+              return userGender == targetGender && doc.id != currentUserId;
+            })
+            .take(20)
+            .toList();
+        
+        print('✅ Fallback query returned ${fallbackFiltered.length} potential matches.');
+        return fallbackFiltered;
+      } catch (fallbackError) {
+        print('❌ Fallback query also failed: $fallbackError');
+        return [];
+      }
     }
   }
 

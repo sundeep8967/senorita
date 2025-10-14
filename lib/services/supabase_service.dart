@@ -122,13 +122,13 @@ class SupabaseService {
         throw Exception('Upload failed: No response from server');
       }
       
-      // Get public URL
-      final publicUrl = serviceClient.storage
+      // Get signed URL (valid for 1 hour)
+      final signedUrl = await serviceClient.storage
           .from('senorita-images-bucket')
-          .getPublicUrl(filePath);
+          .createSignedUrl(filePath, 3600);
       
-      print('✅ Direct upload successful: $publicUrl');
-      return publicUrl;
+      print('✅ Direct upload successful: $signedUrl');
+      return signedUrl;
     } catch (e) {
       print('❌ Error uploading directly to Supabase: $e');
       throw Exception('Failed to upload image directly: $e');
@@ -255,10 +255,10 @@ class SupabaseService {
       
       for (final file in personalList) {
         if (file.name != '.keep') { // Skip placeholder
-          final publicUrl = serviceClient.storage
+          final signedUrl = await serviceClient.storage
               .from('senorita-images-bucket')
-              .getPublicUrl('$personalPath${file.name}');
-          result['personal']!.add(publicUrl);
+              .createSignedUrl('$personalPath${file.name}', 3600);
+          result['personal']!.add(signedUrl);
         }
       }
       
@@ -270,10 +270,10 @@ class SupabaseService {
       
       for (final file in verificationList) {
         if (file.name != '.keep') { // Skip placeholder
-          final publicUrl = serviceClient.storage
+          final signedUrl = await serviceClient.storage
               .from('senorita-images-bucket')
-              .getPublicUrl('$verificationPath${file.name}');
-          result['verification']!.add(publicUrl);
+              .createSignedUrl('$verificationPath${file.name}', 3600);
+          result['verification']!.add(signedUrl);
         }
       }
       
