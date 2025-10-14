@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:senorita/services/firebase_service.dart';
 import 'home_screen.dart';
+import 'welcome_screen.dart';
 
 class ProfileDisplayScreen extends StatefulWidget {
   final String name;
@@ -167,6 +168,111 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
         ),
       ),
     );
+  }
+
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Log Out',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to log out? You\'ll need to sign in again to access your account.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _performLogout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'Log Out',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performLogout() async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          );
+        },
+      );
+
+      // Perform logout
+      await _firebaseService.signOut();
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Navigate to welcome screen and clear navigation stack
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const RayaWelcomeScreen()),
+        (Route<dynamic> route) => false,
+      );
+
+      _showSnackBar('Successfully logged out');
+      
+    } catch (e) {
+      // Close loading dialog if still showing
+      Navigator.of(context).pop();
+      
+      print('❌ Logout error: $e');
+      _showSnackBar('Error logging out. Please try again.');
+    }
   }
 
   @override
@@ -699,9 +805,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
         Container(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () {
-              _showSnackBar('Logout functionality would be implemented here');
-            },
+            onPressed: () => _showLogoutConfirmation(),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               foregroundColor: Colors.white,

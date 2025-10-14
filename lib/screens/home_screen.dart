@@ -5,6 +5,7 @@ import 'package:senorita/services/firebase_service.dart';
 import 'package:senorita/services/supabase_service.dart';
 import 'package:senorita/screens/chat_screen.dart';
 import 'package:senorita/screens/chat_list_screen.dart';
+import 'package:senorita/screens/timer_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
 import 'package:senorita/screens/choose_cafe_screen.dart';
 import 'package:flutter/services.dart';
@@ -354,13 +355,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        opaque: false,
-                        pageBuilder: (context, _, __) => const ChooseCafeScreen(),
-                      ),
-                    );
+                    if (_potentialMatches.isNotEmpty) {
+                      final currentMatch = _potentialMatches[_currentMatchIndex];
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          opaque: false,
+                          pageBuilder: (context, _, __) => ChooseCafeScreen(currentMatch: currentMatch),
+                        ),
+                      );
+                    }
                   },
                   child: _buildBlurButton(Icons.local_fire_department, Colors.white),
                 ),
@@ -407,11 +411,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen())), child: Icon(Icons.notifications, color: Colors.white.withOpacity(0.6), size: 24)),
                     GestureDetector(
                       onTap: () {
-                        // TODO: Implement alarm/timer functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Alarm feature coming soon!'),
-                            backgroundColor: Colors.blue,
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TimerScreen(),
                           ),
                         );
                       },

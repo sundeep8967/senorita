@@ -473,4 +473,40 @@ class FirebaseService {
       print('❌ Error creating user preferences: $e');
     }
   }
+
+  // AUTHENTICATION METHODS
+
+  /// Signs out the current user and clears all session data
+  Future<void> signOut() async {
+    try {
+      final String? userId = currentUserId;
+      
+      if (userId != null) {
+        // Update user status to offline before signing out
+        await _firestore.collection('users').doc(userId).update({
+          'isOnline': false,
+          'lastSeen': FieldValue.serverTimestamp(),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+        print('✅ User status updated to offline');
+      }
+
+      // Sign out from Firebase Auth
+      await _auth.signOut();
+      print('✅ User signed out successfully');
+      
+    } catch (e) {
+      print('❌ Error during sign out: $e');
+      rethrow;
+    }
+  }
+
+  /// Checks if user is currently authenticated
+  bool get isAuthenticated => _auth.currentUser != null;
+
+  /// Gets the current user
+  User? get currentUser => _auth.currentUser;
+
+  /// Stream to listen to authentication state changes
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 }
