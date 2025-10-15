@@ -30,6 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   PageController? _pageController;
   
+  // Bottom navigation
+  int _currentNavIndex = 0;
+  
   // Cache for user images fetched from Supabase
   Map<String, List<String>> _userImagesCache = {};
   
@@ -124,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator()));
     }
 
-    final homeContent = _potentialMatches.isEmpty ? _buildNoMatchesFound() : _buildHomeContent();
+    final homeContent = _buildMainContent();
 
     if (widget.isLocked) {
       return Stack(
@@ -184,6 +187,43 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     return homeContent;
+  }
+
+  Widget _buildMainContent() {
+    Widget content;
+    
+    switch (_currentNavIndex) {
+      case 0:
+        return _potentialMatches.isEmpty ? _buildNoMatchesFound() : _buildHomeContent();
+      case 1:
+        content = const ChatListScreen();
+        break;
+      case 2:
+        content = const NotificationScreen();
+        break;
+      case 3:
+        content = const TimerScreen();
+        break;
+      case 4:
+        content = ProfileDisplayScreen(
+          name: _userProfile?.fullName ?? '',
+          age: _userProfile?.age ?? 0,
+          profession: _userProfile?.profession ?? '',
+          bio: _userProfile?.bio ?? '',
+          location: _userProfile?.location ?? '',
+          images: null,
+        );
+        break;
+      default:
+        return _potentialMatches.isEmpty ? _buildNoMatchesFound() : _buildHomeContent();
+    }
+    
+    // For non-home tabs, wrap content with scaffold and bottom nav
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: content,
+      bottomNavigationBar: _buildBottomNavBar(),
+    );
   }
 
   Widget _buildNoMatchesFound() {
@@ -385,59 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           Positioned(
             bottom: 0, left: 0, right: 0,
-            child: Container(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.4),
-                border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1), width: 1)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    GestureDetector(child: SvgPicture.asset('assets/custom_icon.svg', width: 28, height: 28, colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn))),
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ChatListScreen(),
-                          ),
-                        );
-                      },
-                      child: Icon(Icons.forum, color: Colors.white.withOpacity(0.6), size: 24)),
-                    GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen())), child: Icon(Icons.notifications, color: Colors.white.withOpacity(0.6), size: 24)),
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const TimerScreen(),
-                          ),
-                        );
-                      },
-                      child: SvgPicture.asset(
-                        'assets/notch_icon.svg',
-                        width: 24,
-                        height: 24,
-                        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileDisplayScreen(
-                        name: _userProfile?.fullName ?? '', age: _userProfile?.age ?? 0,
-                        profession: _userProfile?.profession ?? '', bio: _userProfile?.bio ?? '',
-                        location: _userProfile?.location ?? '', images: null,
-                      ))),
-                      child: SvgPicture.asset('assets/person_icon.svg', width: 24, height: 24, colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            child: _buildBottomNavBar(),
           ),
         ],
       ),
@@ -532,6 +520,140 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavBar() {
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(20),
+        topRight: Radius.circular(20),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).padding.bottom + 12,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.3),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildNavItem(
+                icon: 'assets/custom_icon.svg',
+                isActive: _currentNavIndex == 0,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _currentNavIndex = 0;
+                  });
+                },
+              ),
+              _buildNavItem(
+                iconData: Icons.forum_outlined,
+                isActive: _currentNavIndex == 1,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _currentNavIndex = 1;
+                  });
+                },
+              ),
+              _buildNavItem(
+                iconData: Icons.notifications_outlined,
+                isActive: _currentNavIndex == 2,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _currentNavIndex = 2;
+                  });
+                },
+              ),
+              _buildNavItem(
+                icon: 'assets/notch_icon.svg',
+                isActive: _currentNavIndex == 3,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _currentNavIndex = 3;
+                  });
+                },
+              ),
+              _buildNavItem(
+                icon: 'assets/person_icon.svg',
+                isActive: _currentNavIndex == 4,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _currentNavIndex = 4;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    String? icon,
+    IconData? iconData,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isActive 
+              ? Colors.white.withOpacity(0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: isActive 
+              ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
+              : null,
+        ),
+        child: AnimatedScale(
+          scale: isActive ? 1.1 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: icon != null
+              ? SvgPicture.asset(
+                  icon,
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(
+                    isActive 
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.6),
+                    BlendMode.srcIn,
+                  ),
+                )
+              : Icon(
+                  iconData!,
+                  color: isActive 
+                      ? Colors.white
+                      : Colors.white.withOpacity(0.6),
+                  size: 24,
+                ),
         ),
       ),
     );
