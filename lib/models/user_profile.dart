@@ -17,6 +17,7 @@ class UserProfile {
   final DateTime? onboardingCompletedAt;
   final bool isActive;
   final String? profileStatus;
+  final String? userCode; // 6-character unique identifier
 
   // Onboarding step completion flags
   final bool nameCompleted;
@@ -53,6 +54,7 @@ class UserProfile {
     this.onboardingCompletedAt,
     this.isActive = false,
     this.profileStatus,
+    this.userCode,
     this.nameCompleted = false,
     this.genderCompleted = false,
     this.ageCompleted = false,
@@ -98,6 +100,7 @@ class UserProfile {
           (data['onboardingCompletedAt'] as Timestamp?)?.toDate(),
       isActive: data['isActive'] ?? false,
       profileStatus: data['profileStatus'],
+      userCode: data['userCode'],
       nameCompleted: data['nameCompleted'] ?? false,
       genderCompleted: data['genderCompleted'] ?? false,
       ageCompleted: data['ageCompleted'] ?? false,
@@ -133,6 +136,7 @@ class UserProfile {
       'onboardingCompletedAt': onboardingCompletedAt != null ? Timestamp.fromDate(onboardingCompletedAt!) : null,
       'isActive': isActive,
       'profileStatus': profileStatus,
+      'userCode': userCode,
       'nameCompleted': nameCompleted,
       'genderCompleted': genderCompleted,
       'ageCompleted': ageCompleted,
@@ -165,6 +169,7 @@ class UserProfile {
     DateTime? onboardingCompletedAt,
     bool? isActive,
     String? profileStatus,
+    String? userCode,
     bool? nameCompleted,
     bool? genderCompleted,
     bool? ageCompleted,
@@ -197,6 +202,7 @@ class UserProfile {
       onboardingCompletedAt: onboardingCompletedAt ?? this.onboardingCompletedAt,
       isActive: isActive ?? this.isActive,
       profileStatus: profileStatus ?? this.profileStatus,
+      userCode: userCode ?? this.userCode,
       nameCompleted: nameCompleted ?? this.nameCompleted,
       genderCompleted: genderCompleted ?? this.genderCompleted,
       ageCompleted: ageCompleted ?? this.ageCompleted,

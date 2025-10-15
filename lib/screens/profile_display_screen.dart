@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:senorita/services/firebase_service.dart';
+import 'package:senorita/models/user_profile.dart';
+import 'package:image_picker/image_picker.dart';
 import 'home_screen.dart';
 import 'welcome_screen.dart';
 
@@ -37,12 +40,16 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
 
   File? _profileImage;
   List<File> _images = [];
+  final ImagePicker _picker = ImagePicker();
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  bool _isEditing = true;
+  bool _isEditing = false;
+  bool _isLoading = false;
+  String? _userCode;
+  Map<String, dynamic>? _userProfile;
   final FirebaseService _firebaseService = FirebaseService();
 
   @override
@@ -61,7 +68,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       }
     }
 
-    // Initialize animations
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -84,6 +90,78 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
     ));
 
     _animationController.forward();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      print('🔍 Loading user profile...');
+      
+      // Check if user is authenticated first
+      if (_firebaseService.currentUserId == null) {
+        print('❌ User not authenticated, cannot load profile');
+        return;
+      }
+      
+      // First ensure user profile is initialized
+      await _firebaseService.initializeUserProfile();
+      
+      // Add a small delay to ensure Firestore operations complete
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Then get the updated profile
+      final profile = await _firebaseService.getUserProfile();
+      if (profile != null) {
+        print('✅ Profile loaded: ${profile.keys.toList()}');
+        print('🔑 User code from profile: ${profile['userCode']}');
+        
+        setState(() {
+          _userProfile = profile;
+          _userCode = profile['userCode'];
+        });
+        
+        // Check if userCode is still null or empty after initialization
+        if (_userCode == null || _userCode!.isEmpty) {
+          print('⚠️ User code is missing after initialization, forcing regeneration...');
+          
+          // Force generate a new code and update directly
+          await _firebaseService.forceGenerateUserCode();
+          
+          // Wait a bit and reload
+          await Future.delayed(const Duration(milliseconds: 1000));
+          final updatedProfile = await _firebaseService.getUserProfile();
+          if (updatedProfile != null) {
+            setState(() {
+              _userProfile = updatedProfile;
+              _userCode = updatedProfile['userCode'];
+            });
+            print('🔄 Updated user code after force generation: ${_userCode}');
+          }
+        }
+      } else {
+        print('❌ No profile found after initialization, retrying...');
+        // Wait a bit before retrying
+        await Future.delayed(const Duration(milliseconds: 1000));
+        final retryProfile = await _firebaseService.getUserProfile();
+        if (retryProfile != null) {
+          setState(() {
+            _userProfile = retryProfile;
+            _userCode = retryProfile['userCode'];
+          });
+          print('✅ Profile loaded on retry: ${_userCode}');
+        } else {
+          print('❌ Failed to load profile after retry');
+        }
+      }
+    } catch (e) {
+      print('❌ Error loading user profile: $e');
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading profile: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -98,15 +176,40 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
   }
 
   Future<void> _pickImage() async {
-    // In a real app, you would use image_picker package
-    setState(() {
-      _showSnackBar('Image picker would open here');
-    });
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        setState(() {
+          _profileImage = File(image.path);
+          if (_images.isEmpty) {
+            _images.add(_profileImage!);
+          } else {
+            _images[0] = _profileImage!;
+          }
+        });
+        _showSnackBar('Profile photo updated');
+      }
+    } catch (e) {
+      _showSnackBar('Error picking image: $e');
+    }
+  }
+
+  void _copyUserCode() {
+    if (_userCode != null) {
+      Clipboard.setData(ClipboardData(text: _userCode!));
+      _showSnackBar('User code copied to clipboard');
+    }
   }
 
   int _calculateProfileCompletionPercentage() {
     int completedFields = 0;
-    int totalFields = 6; // name, age, profession, bio, location, photos
+    int totalFields = 6;
 
     if (_nameController.text.isNotEmpty) completedFields++;
     if (_ageController.text.isNotEmpty) completedFields++;
@@ -119,6 +222,10 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
   }
 
   Future<void> _saveAndContinue() async {
+    await _saveProfile();
+  }
+
+  Future<void> _saveProfile() async {
     if (_nameController.text.isEmpty) {
       _showSnackBar('Please enter your name');
       return;
@@ -133,274 +240,111 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       return;
     }
 
-    final percentage = _calculateProfileCompletionPercentage();
+    setState(() {
+      _isLoading = true;
+    });
 
-    final updatedData = {
-      'fullName': _nameController.text,
-      'age': age,
-      'profession': _professionController.text,
-      'bio': _bioController.text,
-      'location': _locationController.text,
-      'profileCompletionPercentage': percentage,
-      'lastUpdated': FieldValue.serverTimestamp(),
-    };
+    try {
+      final percentage = _calculateProfileCompletionPercentage();
 
-    await _firebaseService.updateUserProfile(updatedData);
+      final updatedData = {
+        'fullName': _nameController.text,
+        'age': age,
+        'profession': _professionController.text,
+        'bio': _bioController.text,
+        'location': _locationController.text,
+        'profileCompletionPercentage': percentage,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
 
-    _showSnackBar('Profile saved successfully!');
+      await _firebaseService.updateUserProfile(updatedData);
+      
+      setState(() {
+        _isEditing = false;
+        _isLoading = false;
+      });
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-      (Route<dynamic> route) => false,
-    );
+      _showSnackBar('Profile updated successfully');
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showSnackBar('Error updating profile: $e');
+    }
   }
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: Colors.black.withOpacity(0.8),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.white.withOpacity(0.2), width: 1),
-        ),
+        content: Text(message),
+        backgroundColor: Colors.grey[800],
       ),
     );
-  }
-
-  void _showLogoutConfirmation() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Log Out',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: const Text(
-            'Are you sure you want to log out? You\'ll need to sign in again to access your account.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _performLogout();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
-              child: const Text(
-                'Log Out',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _performLogout() async {
-    try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          );
-        },
-      );
-
-      // Perform logout
-      await _firebaseService.signOut();
-
-      // Close loading dialog
-      Navigator.of(context).pop();
-
-      // Navigate to welcome screen and clear navigation stack
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const RayaWelcomeScreen()),
-        (Route<dynamic> route) => false,
-      );
-
-      _showSnackBar('Successfully logged out');
-      
-    } catch (e) {
-      // Close loading dialog if still showing
-      Navigator.of(context).pop();
-      
-      print('❌ Logout error: $e');
-      _showSnackBar('Error logging out. Please try again.');
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Custom App Bar
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.white.withOpacity(0.1),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Profile',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                if (_isEditing) {
+                  _saveProfile();
+                } else {
+                  _isEditing = true;
+                }
+              });
+            },
+            child: Text(
+              _isEditing ? 'Done' : 'Edit',
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: AnimatedBuilder(
+        animation: _fadeAnimation,
+        builder: (context, child) {
+          return FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Profile',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        if (_isEditing) {
-                          _saveAndContinue();
-                        }
-                        setState(() {
-                          _isEditing = !_isEditing;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _isEditing
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: Icon(
-                          _isEditing ? Icons.check : Icons.edit,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
+                    _buildProfileImageSection(),
+                    const SizedBox(height: 24),
+                    _buildUserCodeSection(),
+                    const SizedBox(height: 24),
+                    _buildProfileInfoSection(),
+                    const SizedBox(height: 24),
+                    _buildAccountSettingsSection(),
+                    const SizedBox(height: 24),
+                    _buildActionButtons(),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
             ),
-
-            // Scrollable Content
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                      child: Column(
-                        children: [
-                          // Profile Image Section
-                          _buildProfileImageSection(),
-
-                          const SizedBox(height: 40),
-
-                          // Profile Info Section
-                          _buildProfileInfoSection(),
-
-                          const SizedBox(height: 40),
-
-                          // Account Settings Section
-                          _buildAccountSettingsSection(),
-
-                          const SizedBox(height: 40),
-
-                          // Action Buttons
-                          _buildActionButtons(),
-
-                          const SizedBox(height: 40),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -411,7 +355,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
         Stack(
           alignment: Alignment.center,
           children: [
-            // Profile Image
             Container(
               width: 140,
               height: 140,
@@ -440,45 +383,34 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                       ),
               ),
             ),
-
-            // Camera Button
-            Positioned(
-              bottom: 5,
-              right: 5,
-              child: GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.black,
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+            if (_isEditing)
+              Positioned(
+                bottom: 5,
+                right: 5,
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.black,
+                        width: 2,
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt,
-                    color: Colors.black,
-                    size: 20,
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.black,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
-
         const SizedBox(height: 20),
-
-        // User Info
         Text(
           widget.name,
           style: const TextStyle(
@@ -487,9 +419,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             fontWeight: FontWeight.bold,
           ),
         ),
-
         const SizedBox(height: 8),
-
         Text(
           '${widget.age} years • ${widget.profession}',
           style: TextStyle(
@@ -497,7 +427,120 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             fontSize: 16,
           ),
         ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            '${_calculateProfileCompletionPercentage()}% Complete',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.blue,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildUserCodeSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.qr_code,
+              color: Colors.blue,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your Code',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _userCode == null
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Generating...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _userCode!,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.blue,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Share this code with friends to connect',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: _userCode != null ? _copyUserCode : null,
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (_userCode != null ? Colors.blue : Colors.grey).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.copy,
+                  color: _userCode != null ? Colors.blue : Colors.grey,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -514,7 +557,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -534,8 +576,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
               ),
             ),
           ),
-
-          // Info Items
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -595,7 +635,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Icon
         Container(
           width: 40,
           height: 40,
@@ -609,10 +648,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             size: 20,
           ),
         ),
-
         const SizedBox(width: 16),
-
-        // Content
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -625,9 +661,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
                   fontWeight: FontWeight.w500,
                 ),
               ),
-
               const SizedBox(height: 4),
-
               _isEditing
                   ? TextField(
                       controller: controller,
@@ -678,7 +712,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -698,8 +731,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
               ),
             ),
           ),
-
-          // Settings Items
           Padding(
             padding: const EdgeInsets.all(8),
             child: Column(
@@ -804,6 +835,35 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
           ),
         Container(
           width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                (Route<dynamic> route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Continue to Home',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        Container(
+          width: double.infinity,
           child: ElevatedButton(
             onPressed: () => _showLogoutConfirmation(),
             style: ElevatedButton.styleFrom(
@@ -831,5 +891,103 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
         ),
       ],
     );
+  }
+
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Log Out',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to log out? You\'ll need to sign in again to access your account.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _performLogout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'Log Out',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performLogout() async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          );
+        },
+      );
+
+      await _firebaseService.signOut();
+      Navigator.of(context).pop();
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const RayaWelcomeScreen()),
+        (Route<dynamic> route) => false,
+      );
+
+      _showSnackBar('Successfully logged out');
+      
+    } catch (e) {
+      Navigator.of(context).pop();
+      print('❌ Logout error: $e');
+      _showSnackBar('Error logging out. Please try again.');
+    }
   }
 }

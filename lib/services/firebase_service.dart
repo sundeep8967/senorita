@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'dart:math';
 
 import '../models/chat_message.dart';
 import '../models/chat_room.dart';
@@ -81,14 +82,29 @@ class FirebaseService {
       
       if (userDoc.exists) {
         print('✅ User profile already exists for: $currentUserId');
-        await _firestore.collection('users').doc(currentUserId).update({
-          'lastUpdated': FieldValue.serverTimestamp(),
-          'lastSignIn': FieldValue.serverTimestamp(),
-        });
-        print('✅ User profile updated with last sign-in time');
+        
+        // Check if user has a userCode, if not generate one
+        final data = userDoc.data() as Map<String, dynamic>?;
+        if (data != null && (data['userCode'] == null || data['userCode'].toString().isEmpty)) {
+          final userCode = await _generateUniqueUserCode();
+          await _firestore.collection('users').doc(currentUserId).update({
+            'userCode': userCode,
+            'lastUpdated': FieldValue.serverTimestamp(),
+            'lastSignIn': FieldValue.serverTimestamp(),
+          });
+          print('✅ User code generated: $userCode');
+        } else {
+          await _firestore.collection('users').doc(currentUserId).update({
+            'lastUpdated': FieldValue.serverTimestamp(),
+            'lastSignIn': FieldValue.serverTimestamp(),
+          });
+          print('✅ User profile updated with last sign-in time');
+        }
       } else {
+        final userCode = await _generateUniqueUserCode();
         await _firestore.collection('users').doc(currentUserId).set({
           'userId': currentUserId,
+          'userCode': userCode,
           'createdAt': FieldValue.serverTimestamp(),
           'onboardingStarted': true,
           'onboardingCompleted': false,
@@ -96,10 +112,89 @@ class FirebaseService {
           'lastUpdated': FieldValue.serverTimestamp(),
           'lastSignIn': FieldValue.serverTimestamp(),
         });
-        print('✅ New user profile created for: $currentUserId');
+        print('✅ New user profile created for: $currentUserId with code: $userCode');
       }
     } catch (e) {
       print('❌ Error initializing user profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Generates a unique 6-character alphanumeric user code
+  Future<String> _generateUniqueUserCode() async {
+    const String chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final Random random = Random();
+    int attempts = 0;
+    const int maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      // Generate 6-character code
+      String code = '';
+      for (int i = 0; i < 6; i++) {
+        code += chars[random.nextInt(chars.length)];
+      }
+
+      // Check if code already exists
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('userCode', isEqualTo: code)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        print('✅ Generated unique user code: $code');
+        return code;
+      }
+
+      attempts++;
+      print('⚠️ Code $code already exists, trying again (attempt $attempts)');
+    }
+
+    // Fallback: use timestamp-based code if we can't generate unique one
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final fallbackCode = timestamp.substring(timestamp.length - 6);
+    print('⚠️ Using fallback code: $fallbackCode');
+    return fallbackCode;
+  }
+
+  /// Gets user profile by user code
+  Future<Map<String, dynamic>?> getUserProfileByCode(String userCode) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('userCode', isEqualTo: userCode.toUpperCase())
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.data() as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting user profile by code: $e');
+      return null;
+    }
+  }
+
+  /// Force generates a new user code for the current user
+  Future<void> forceGenerateUserCode() async {
+    if (currentUserId == null) {
+      print('❌ Cannot generate user code: user not authenticated');
+      return;
+    }
+    
+    try {
+      print('🔄 Force generating new user code...');
+      final userCode = await _generateUniqueUserCode();
+      
+      await _firestore.collection('users').doc(currentUserId).update({
+        'userCode': userCode,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+      
+      print('✅ Force generated user code: $userCode');
+    } catch (e) {
+      print('❌ Error force generating user code: $e');
       rethrow;
     }
   }
