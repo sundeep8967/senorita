@@ -37,6 +37,7 @@ class FirebaseService {
         roomId: roomId,
         participantIds: participants,
         lastMessageTimestamp: Timestamp.now(),
+        createdAt: Timestamp.now(),
       );
       await roomDoc.set(newRoom.toFirestore());
     }
@@ -47,16 +48,52 @@ class FirebaseService {
   Future<void> sendMessage(String roomId, ChatMessage message) async {
     if (currentUserId == null) throw Exception('User not authenticated');
 
+    // Get chat room participants for scalable updates
+    final roomDoc = await _firestore.collection('chat_rooms').doc(roomId).get();
+    if (!roomDoc.exists) throw Exception('Chat room not found');
+    
+    final participantIds = List<String>.from(roomDoc.data()?['participantIds'] ?? []);
+    
+    // Use batched writes for better performance and atomicity
+    final batch = _firestore.batch();
+
+    // Add message to chat room
+    final messageRef = _firestore.collection('chat_rooms').doc(roomId).collection('messages').doc();
+    batch.set(messageRef, message.toFirestore());
+
+    // Update main chat room
     final roomRef = _firestore.collection('chat_rooms').doc(roomId);
-    final messageRef = roomRef.collection('messages');
-
-    await messageRef.add(message.toFirestore());
-
-    await roomRef.update({
+    batch.update(roomRef, {
       'lastMessage': message.content,
       'lastMessageTimestamp': message.timestamp,
       'lastMessageSenderId': message.senderId,
     });
+
+    // Update user-specific chat references for all participants
+    for (final userId in participantIds) {
+      final userChatRef = _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('chat_rooms')
+          .doc(roomId);
+      
+      final updateData = {
+        'lastMessage': message.content,
+        'lastMessageTimestamp': message.timestamp,
+        'lastMessageSenderId': message.senderId,
+      };
+      
+      // Increment unread count for receiver, reset for sender
+      if (userId != message.senderId) {
+        updateData['unreadCount'] = FieldValue.increment(1);
+      } else {
+        updateData['unreadCount'] = 0; // Reset sender's unread count
+      }
+      
+      batch.update(userChatRef, updateData);
+    }
+
+    await batch.commit();
   }
 
   Stream<List<ChatMessage>> getMessagesStream(String roomId) {
@@ -69,6 +106,163 @@ class FirebaseService {
         .map((snapshot) {
       return snapshot.docs.map((doc) => ChatMessage.fromFirestore(doc)).toList();
     });
+  }
+
+  /// Gets all chat rooms for the current user (SCALABLE VERSION)
+  Stream<List<ChatRoom>> getChatRoomsForUser() {
+    if (currentUserId == null) return Stream.value([]);
+
+    // Use user-specific subcollection for better performance with 1000+ users
+    return _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('chat_rooms')
+        .orderBy('lastMessageTimestamp', descending: true)
+        .limit(50) // Limit for performance
+        .snapshots()
+        .asyncMap((snapshot) async {
+      // Batch fetch user profiles to avoid N+1 queries
+      final List<String> otherUserIds = snapshot.docs
+          .map((doc) => doc.data()['otherUserId'] as String?)
+          .where((id) => id != null)
+          .cast<String>()
+          .toList();
+      
+      final userProfiles = await _batchGetUserProfiles(otherUserIds);
+      
+      // Convert to ChatRoom objects with cached user data
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return ChatRoom.fromUserChatReference(doc.id, data, userProfiles);
+      }).toList();
+    });
+  }
+
+  /// Batch fetch user profiles to avoid N+1 query problem
+  Future<Map<String, Map<String, dynamic>>> _batchGetUserProfiles(List<String> userIds) async {
+    final Map<String, Map<String, dynamic>> profiles = {};
+    
+    if (userIds.isEmpty) return profiles;
+    
+    // Batch reads in chunks of 10 (Firestore limit)
+    for (int i = 0; i < userIds.length; i += 10) {
+      final chunk = userIds.skip(i).take(10).toList();
+      
+      final List<Future<DocumentSnapshot>> futures = chunk.map((userId) =>
+          _firestore.collection('users').doc(userId).get()
+      ).toList();
+      
+      final results = await Future.wait(futures);
+      for (int j = 0; j < results.length; j++) {
+        if (results[j].exists) {
+          profiles[chunk[j]] = results[j].data() as Map<String, dynamic>;
+        }
+      }
+    }
+    
+    return profiles;
+  }
+
+  /// Creates a chat room specifically for a meetup between two users (SCALABLE VERSION)
+  Future<String> createMeetupChatRoom(String otherUserId, String meetupId) async {
+    if (currentUserId == null) throw Exception('User not authenticated');
+
+    List<String> participants = [currentUserId!, otherUserId];
+    participants.sort();
+    String roomId = participants.join('_');
+
+    final roomDoc = _firestore.collection('chat_rooms').doc(roomId);
+    final snapshot = await roomDoc.get();
+    final currentTimestamp = Timestamp.now();
+
+    if (!snapshot.exists) {
+      // Use batched writes for better performance and atomicity
+      final batch = _firestore.batch();
+      
+      // Create main chat room
+      final newRoom = ChatRoom(
+        roomId: roomId,
+        participantIds: participants,
+        lastMessageTimestamp: currentTimestamp,
+        createdAt: currentTimestamp,
+        meetupId: meetupId,
+      );
+      batch.set(roomDoc, newRoom.toFirestore());
+      
+      // Create user-specific chat references for scalable queries
+      await _createUserChatReferences(batch, roomId, currentUserId!, otherUserId, meetupId, currentTimestamp);
+      
+      await batch.commit();
+      
+      // Add system message after creating room structure
+      final systemMessage = ChatMessage(
+        messageId: '',
+        senderId: 'system',
+        receiverId: 'all',
+        content: 'You are now connected! Your meetup has been confirmed.',
+        timestamp: currentTimestamp,
+        messageType: 'system',
+      );
+      
+      await sendMessage(roomId, systemMessage);
+      print('✅ Scalable meetup chat room created: $roomId for meetup: $meetupId');
+    } else {
+      // Update existing room and user references
+      final batch = _firestore.batch();
+      
+      batch.update(roomDoc, {
+        'meetupId': meetupId,
+        'lastUpdated': currentTimestamp,
+      });
+      
+      // Update user chat references
+      batch.update(
+        _firestore.collection('users').doc(currentUserId).collection('chat_rooms').doc(roomId),
+        {'meetupId': meetupId, 'lastUpdated': currentTimestamp}
+      );
+      batch.update(
+        _firestore.collection('users').doc(otherUserId).collection('chat_rooms').doc(roomId),
+        {'meetupId': meetupId, 'lastUpdated': currentTimestamp}
+      );
+      
+      await batch.commit();
+      print('✅ Existing scalable chat room updated with meetup: $meetupId');
+    }
+
+    return roomId;
+  }
+
+  /// Creates user-specific chat references for scalable queries
+  Future<void> _createUserChatReferences(WriteBatch batch, String chatRoomId, String user1Id, String user2Id, String meetupId, Timestamp timestamp) async {
+    // User 1's chat reference
+    batch.set(
+      _firestore.collection('users').doc(user1Id).collection('chat_rooms').doc(chatRoomId),
+      {
+        'chatRoomId': chatRoomId,
+        'otherUserId': user2Id,
+        'lastMessageTimestamp': timestamp,
+        'unreadCount': 0,
+        'lastMessage': '',
+        'lastMessageSenderId': '',
+        'meetupId': meetupId,
+        'createdAt': timestamp,
+      }
+    );
+    
+    // User 2's chat reference
+    batch.set(
+      _firestore.collection('users').doc(user2Id).collection('chat_rooms').doc(chatRoomId),
+      {
+        'chatRoomId': chatRoomId,
+        'otherUserId': user1Id,
+        'lastMessageTimestamp': timestamp,
+        'unreadCount': 0,
+        'lastMessage': '',
+        'lastMessageSenderId': '',
+        'meetupId': meetupId,
+        'createdAt': timestamp,
+      }
+    );
   }
 
 

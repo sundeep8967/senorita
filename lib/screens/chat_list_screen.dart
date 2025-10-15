@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import '../services/firebase_service.dart';
+import '../models/chat_room.dart';
+import 'chat_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ChatListScreen extends StatelessWidget {
+class ChatListScreen extends StatefulWidget {
   const ChatListScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ChatListScreen> createState() => _ChatListScreenState();
+}
+
+class _ChatListScreenState extends State<ChatListScreen> {
+  final FirebaseService _firebaseService = FirebaseService();
 
   @override
   Widget build(BuildContext context) {
@@ -78,12 +89,66 @@ class ChatListScreen extends StatelessWidget {
           
           // Chat list
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _getDummyChats().length,
-              itemBuilder: (context, index) {
-                final chat = _getDummyChats()[index];
-                return _buildChatItem(context, chat);
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _getChatRoomsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+                
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error loading chats: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  );
+                }
+                
+                final chatRoomDocs = snapshot.data?.docs ?? [];
+                
+                if (chatRoomDocs.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 80,
+                          color: Colors.white54,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No chats yet',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 18,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Start by accepting a meetup request!',
+                          style: TextStyle(
+                            color: Colors.white38,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: chatRoomDocs.length,
+                  itemBuilder: (context, index) {
+                    final doc = chatRoomDocs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return _buildChatItemFromUserReference(context, doc.id, data);
+                  },
+                );
               },
             ),
           ),
@@ -92,39 +157,98 @@ class ChatListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildChatItem(BuildContext context, Map<String, dynamic> chat) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.1),
-                width: 1,
-              ),
-            ),
-            child: InkWell(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                // TODO: Navigate to specific chat
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Opening chat with ${chat['name']}'),
-                    backgroundColor: Colors.blue.shade600,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
+  Stream<QuerySnapshot> _getChatRoomsStream() {
+    final currentUserId = _firebaseService.currentUserId;
+    if (currentUserId == null) {
+      print('❌ No current user ID for chat rooms stream');
+      return const Stream.empty();
+    }
+    
+    print('🔍 Getting chat rooms for user: $currentUserId (SCALABLE VERSION)');
+    
+    // Use user-specific subcollection for better performance with 1000+ users
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserId)
+        .collection('chat_rooms')
+        .orderBy('lastMessageTimestamp', descending: true)
+        .limit(50) // Limit for performance
+        .snapshots()
+        .map((snapshot) {
+          print('📱 Chat rooms found: ${snapshot.docs.length}');
+          for (var doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            print('  - Room: ${doc.id}, otherUser: ${data['otherUserId']}, meetupId: ${data['meetupId']}');
+          }
+          return snapshot;
+        });
+  }
+
+  Future<Map<String, dynamic>?> _getUserProfile(String userId) async {
+    if (userId.isEmpty) return null;
+    
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      
+      if (userDoc.exists) {
+        return userDoc.data() as Map<String, dynamic>?;
+      }
+    } catch (e) {
+      print('Error getting user profile: $e');
+    }
+    
+    return null;
+  }
+
+  Widget _buildChatItemFromUserReference(BuildContext context, String chatRoomId, Map<String, dynamic> data) {
+    final otherUserId = data['otherUserId'] as String? ?? '';
+    
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _getUserProfile(otherUserId),
+      builder: (context, snapshot) {
+        final otherUser = snapshot.data;
+        final userName = otherUser?['fullName'] ?? 'Unknown User';
+        final userAge = otherUser?['age']?.toString() ?? '';
+        final lastMessage = data['lastMessage'] as String? ?? '';
+        final lastMessageTimestamp = data['lastMessageTimestamp'] as Timestamp? ?? Timestamp.now();
+        final unreadCount = data['unreadCount'] as int? ?? 0;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
                   ),
-                );
-              },
-              borderRadius: BorderRadius.circular(16),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChatScreen(
+                          otherUserId: otherUserId,
+                          otherUserName: userName,
+                          otherUserAvatar: otherUser?['photos']?.isNotEmpty == true 
+                              ? otherUser!['photos'][0] 
+                              : '',
+                        ),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
               child: Row(
                 children: [
                   // Avatar
@@ -134,14 +258,14 @@ class ChatListScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                        colors: chat['avatarColors'],
+                        colors: [Colors.pink.shade400, Colors.purple.shade600],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                     ),
                     child: Center(
                       child: Text(
-                        chat['name'][0].toUpperCase(),
+                        userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -161,7 +285,7 @@ class ChatListScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              chat['name'],
+                              userName,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -169,7 +293,7 @@ class ChatListScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              chat['time'],
+                              _formatTimestamp(lastMessageTimestamp),
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.6),
                                 fontSize: 14,
@@ -182,7 +306,7 @@ class ChatListScreen extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                chat['lastMessage'],
+                                lastMessage.isEmpty ? 'No messages yet' : lastMessage,
                                 style: TextStyle(
                                   color: Colors.white.withOpacity(0.7),
                                   fontSize: 15,
@@ -191,7 +315,7 @@ class ChatListScreen extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (chat['unreadCount'] > 0)
+                            if (unreadCount > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -202,7 +326,7 @@ class ChatListScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  chat['unreadCount'].toString(),
+                                  unreadCount.toString(),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
@@ -217,71 +341,32 @@ class ChatListScreen extends StatelessWidget {
                   ),
                 ],
               ),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  List<Map<String, dynamic>> _getDummyChats() {
-    return [
-      {
-        'name': 'Emma Thompson',
-        'lastMessage': 'Hey! How was your day? 😊',
-        'time': '2m ago',
-        'unreadCount': 2,
-        'avatarColors': [Colors.pink.shade400, Colors.purple.shade600],
-      },
-      {
-        'name': 'Sarah Wilson',
-        'lastMessage': 'Looking forward to our coffee date!',
-        'time': '15m ago',
-        'unreadCount': 0,
-        'avatarColors': [Colors.blue.shade400, Colors.teal.shade600],
-      },
-      {
-        'name': 'Jessica Lee',
-        'lastMessage': 'That restaurant looks amazing 🍕',
-        'time': '1h ago',
-        'unreadCount': 1,
-        'avatarColors': [Colors.orange.shade400, Colors.red.shade600],
-      },
-      {
-        'name': 'Michelle Davis',
-        'lastMessage': 'Thanks for the recommendation!',
-        'time': '3h ago',
-        'unreadCount': 0,
-        'avatarColors': [Colors.green.shade400, Colors.teal.shade600],
-      },
-      {
-        'name': 'Ashley Brown',
-        'lastMessage': 'See you soon! 💕',
-        'time': 'Yesterday',
-        'unreadCount': 0,
-        'avatarColors': [Colors.purple.shade400, Colors.pink.shade600],
-      },
-      {
-        'name': 'Rachel Green',
-        'lastMessage': 'Had a great time today!',
-        'time': 'Yesterday',
-        'unreadCount': 0,
-        'avatarColors': [Colors.indigo.shade400, Colors.blue.shade600],
-      },
-      {
-        'name': 'Monica Garcia',
-        'lastMessage': 'Let\'s plan something for weekend',
-        'time': '2 days ago',
-        'unreadCount': 0,
-        'avatarColors': [Colors.teal.shade400, Colors.green.shade600],
-      },
-      {
-        'name': 'Olivia Martinez',
-        'lastMessage': 'Thanks for the lovely evening ✨',
-        'time': '3 days ago',
-        'unreadCount': 0,
-        'avatarColors': [Colors.amber.shade400, Colors.orange.shade600],
-      },
-    ];
+  String _formatTimestamp(Timestamp timestamp) {
+    final now = DateTime.now();
+    final date = timestamp.toDate();
+    final difference = now.difference(date);
+    
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }

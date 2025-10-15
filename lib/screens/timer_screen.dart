@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:senorita/features/meetup/domain/models/meetup_model.dart';
 import 'package:senorita/features/meetup/data/repositories/meetup_repository_impl.dart';
 import 'package:senorita/services/firebase_service.dart';
+import 'package:senorita/models/chat_message.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({Key? key}) : super(key: key);
@@ -312,9 +313,43 @@ class _TimerScreenState extends State<TimerScreen> {
   Future<void> _handleMeetupResponse(String meetupId, MeetupStatus status) async {
     try {
       HapticFeedback.lightImpact();
+      
+      // Get meetup details first to know who to create chat with
+      final meetup = await _meetupRepository.getMeetupDetails(meetupId);
+      if (meetup == null) {
+        throw Exception('Meetup not found');
+      }
+      
+      // Update meetup status
       await _meetupRepository.updateMeetupStatus(meetupId, status);
       
-      final message = status == MeetupStatus.accepted ? 'Meetup accepted!' : 'Meetup declined';
+      // If accepted, create chat room between both users
+      if (status == MeetupStatus.accepted) {
+        print('🎉 Meetup accepted! Creating chat room...');
+        
+        // Determine the other user (the one who sent the request)
+        final otherUserId = meetup.requestingUserId;
+        
+        // Create or get existing chat room
+        final chatRoomId = await _firebaseService.getOrCreateChatRoom(otherUserId);
+        print('✅ Chat room created/found: $chatRoomId');
+        
+        // Send an initial system message to the chat
+        final systemMessage = ChatMessage(
+          messageId: '',
+          senderId: 'system',
+          receiverId: otherUserId,
+          content: '🎉 Great! You both accepted the meetup request. Start chatting and plan your ${meetup.packageType} meetup!',
+          timestamp: Timestamp.now(),
+        );
+        
+        await _firebaseService.sendMessage(chatRoomId, systemMessage);
+        print('✅ Welcome message sent to chat room');
+      }
+      
+      final message = status == MeetupStatus.accepted 
+          ? 'Meetup accepted! Chat created - check your chat list!' 
+          : 'Meetup declined';
       final color = status == MeetupStatus.accepted ? Colors.green : Colors.red;
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -325,9 +360,11 @@ class _TimerScreenState extends State<TimerScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
+          duration: const Duration(seconds: 4),
         ),
       );
     } catch (e) {
+      print('❌ Error handling meetup response: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
