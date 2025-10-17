@@ -14,9 +14,22 @@ class TimerScreen extends StatefulWidget {
   State<TimerScreen> createState() => _TimerScreenState();
 }
 
-class _TimerScreenState extends State<TimerScreen> {
+class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStateMixin {
   final FirebaseService _firebaseService = FirebaseService();
   final MeetupRepositoryImpl _meetupRepository = MeetupRepositoryImpl();
+  late TabController _tabController;
+  
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -35,8 +48,36 @@ class _TimerScreenState extends State<TimerScreen> {
           ),
         ),
         centerTitle: true,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.5),
+          labelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          tabs: const [
+            Tab(text: 'Received'),
+            Tab(text: 'Accepted'),
+            Tab(text: 'Sent'),
+          ],
+        ),
       ),
-      body: StreamBuilder<List<Meetup>>(
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildReceivedTab(),
+          _buildAcceptedTab(),
+          _buildSentTab(),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildReceivedTab() {
+    return StreamBuilder<List<Meetup>>(
         stream: _meetupRepository.getMeetupsForUser(_firebaseService.currentUserId!),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -54,7 +95,10 @@ class _TimerScreenState extends State<TimerScreen> {
             );
           }
           
-          final meetups = snapshot.data ?? [];
+          // Filter to show only received meetups that are pending
+          final meetups = (snapshot.data ?? [])
+              .where((m) => m.invitedUserId == _firebaseService.currentUserId && m.status == MeetupStatus.pending)
+              .toList();
           
           if (meetups.isEmpty) {
             return const Center(
@@ -68,7 +112,7 @@ class _TimerScreenState extends State<TimerScreen> {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'No meetup requests yet',
+                    'No pending requests',
                     style: TextStyle(
                       color: Colors.white54,
                       fontSize: 18,
@@ -88,8 +132,125 @@ class _TimerScreenState extends State<TimerScreen> {
             },
           );
         },
-      ),
-    );
+      );
+  }
+  
+  Widget _buildAcceptedTab() {
+    return StreamBuilder<List<Meetup>>(
+        stream: _meetupRepository.getMeetupsForUser(_firebaseService.currentUserId!),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            );
+          }
+          
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading meetups: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
+          
+          // Filter to show only accepted meetups
+          final meetups = (snapshot.data ?? [])
+              .where((m) => m.status == MeetupStatus.accepted)
+              .toList();
+          
+          if (meetups.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 80,
+                    color: Colors.white54,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No accepted meetups',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: meetups.length,
+            itemBuilder: (context, index) {
+              final meetup = meetups[index];
+              return _buildMeetupCard(meetup);
+            },
+          );
+        },
+      );
+  }
+  
+  Widget _buildSentTab() {
+    return StreamBuilder<List<Meetup>>(
+        stream: _meetupRepository.getMeetupsForUser(_firebaseService.currentUserId!),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            );
+          }
+          
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading meetups: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
+          
+          // Filter to show only sent meetups
+          final meetups = (snapshot.data ?? [])
+              .where((m) => m.requestingUserId == _firebaseService.currentUserId)
+              .toList();
+          
+          if (meetups.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.send_outlined,
+                    size: 80,
+                    color: Colors.white54,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No sent requests',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: meetups.length,
+            itemBuilder: (context, index) {
+              final meetup = meetups[index];
+              return _buildMeetupCard(meetup);
+            },
+          );
+        },
+      );
   }
   
   Widget _buildMeetupCard(Meetup meetup) {
@@ -325,20 +486,68 @@ class _TimerScreenState extends State<TimerScreen> {
     try {
       HapticFeedback.lightImpact();
       
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Center(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      status == MeetupStatus.accepted ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    status == MeetupStatus.accepted 
+                        ? 'Accepting meetup...' 
+                        : 'Declining meetup...',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      
       // Get meetup details first to know who to create chat with
       final meetup = await _meetupRepository.getMeetupDetails(meetupId);
       if (meetup == null) {
+        Navigator.of(context).pop(); // Close loading dialog
         throw Exception('Meetup not found');
       }
       
       // Update meetup status
-      // Note: Chat room creation is now handled automatically in meetup_repository_impl.dart
-      // when status is updated to 'accepted', so we don't need to create it here
       await _meetupRepository.updateMeetupStatus(meetupId, status);
+      
+      // Small delay to show the loading indicator
+      await Future.delayed(const Duration(milliseconds: 800));
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Force UI refresh by rebuilding
+      if (mounted) {
+        setState(() {});
+      }
       
       if (status == MeetupStatus.accepted) {
         // Navigate to chat after accepting
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 300));
         _navigateToChat(meetup);
       } else {
         // Show declined message
@@ -355,6 +564,9 @@ class _TimerScreenState extends State<TimerScreen> {
         );
       }
     } catch (e) {
+      // Close loading dialog if still open
+      Navigator.of(context).pop();
+      
       print('❌ Error handling meetup response: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

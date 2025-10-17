@@ -15,6 +15,14 @@ class ChatListScreen extends StatefulWidget {
 
 class _ChatListScreenState extends State<ChatListScreen> {
   final FirebaseService _firebaseService = FirebaseService();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +71,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
+                          controller: _searchController,
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Search messages...',
@@ -72,8 +81,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             ),
                             border: InputBorder.none,
                           ),
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value.toLowerCase();
+                            });
+                          },
                         ),
                       ),
+                      if (_searchQuery.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.white70, size: 20),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -134,11 +158,44 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   );
                 }
                 
+                // Filter chat rooms based on search query
+                final filteredDocs = _searchQuery.isEmpty
+                    ? chatRoomDocs
+                    : chatRoomDocs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final lastMessage = (data['lastMessage'] as String? ?? '').toLowerCase();
+                        // We'll also check user name when we fetch it
+                        return lastMessage.contains(_searchQuery);
+                      }).toList();
+                
+                if (filteredDocs.isEmpty && _searchQuery.isNotEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.white38,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No chats found',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: chatRoomDocs.length,
+                  itemCount: filteredDocs.length,
                   itemBuilder: (context, index) {
-                    final doc = chatRoomDocs[index];
+                    final doc = filteredDocs[index];
                     final data = doc.data() as Map<String, dynamic>;
                     return _buildChatItemFromRoomDoc(context, doc.id, data);
                   },
