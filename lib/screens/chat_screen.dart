@@ -127,12 +127,29 @@ class _ChatViewState extends State<ChatView> {
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundImage: NetworkImage(widget.otherUserAvatar), // Use NetworkImage
+            backgroundColor: const Color(0xFF007AFF),
+            backgroundImage: widget.otherUserAvatar.isNotEmpty 
+                ? NetworkImage(widget.otherUserAvatar) 
+                : null,
+            child: widget.otherUserAvatar.isEmpty
+                ? Text(
+                    widget.otherUserName.isNotEmpty 
+                        ? widget.otherUserName[0].toUpperCase() 
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
-          Text(
-            widget.otherUserName,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
+          Expanded(
+            child: Text(
+              widget.otherUserName,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

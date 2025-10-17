@@ -45,55 +45,23 @@ class FirebaseService {
     return roomId;
   }
 
+  /// SIMPLIFIED: Send a message to a chat room
   Future<void> sendMessage(String roomId, ChatMessage message) async {
     if (currentUserId == null) throw Exception('User not authenticated');
 
-    // Get chat room participants for scalable updates
-    final roomDoc = await _firestore.collection('chat_rooms').doc(roomId).get();
-    if (!roomDoc.exists) throw Exception('Chat room not found');
-    
-    final participantIds = List<String>.from(roomDoc.data()?['participantIds'] ?? []);
-    
-    // Use batched writes for better performance and atomicity
-    final batch = _firestore.batch();
-
     // Add message to chat room
-    final messageRef = _firestore.collection('chat_rooms').doc(roomId).collection('messages').doc();
-    batch.set(messageRef, message.toFirestore());
+    await _firestore
+        .collection('chat_rooms')
+        .doc(roomId)
+        .collection('messages')
+        .add(message.toFirestore());
 
-    // Update main chat room
-    final roomRef = _firestore.collection('chat_rooms').doc(roomId);
-    batch.update(roomRef, {
+    // Update chat room with last message info
+    await _firestore.collection('chat_rooms').doc(roomId).update({
       'lastMessage': message.content,
       'lastMessageTimestamp': message.timestamp,
       'lastMessageSenderId': message.senderId,
     });
-
-    // Update user-specific chat references for all participants
-    for (final userId in participantIds) {
-      final userChatRef = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('chat_rooms')
-          .doc(roomId);
-      
-      final updateData = {
-        'lastMessage': message.content,
-        'lastMessageTimestamp': message.timestamp,
-        'lastMessageSenderId': message.senderId,
-      };
-      
-      // Increment unread count for receiver, reset for sender
-      if (userId != message.senderId) {
-        updateData['unreadCount'] = FieldValue.increment(1);
-      } else {
-        updateData['unreadCount'] = 0; // Reset sender's unread count
-      }
-      
-      batch.update(userChatRef, updateData);
-    }
-
-    await batch.commit();
   }
 
   Stream<List<ChatMessage>> getMessagesStream(String roomId) {
@@ -108,161 +76,87 @@ class FirebaseService {
     });
   }
 
-  /// Gets all chat rooms for the current user (SCALABLE VERSION)
+  /// SIMPLIFIED: Gets all chat rooms for the current user
   Stream<List<ChatRoom>> getChatRoomsForUser() {
     if (currentUserId == null) return Stream.value([]);
 
-    // Use user-specific subcollection for better performance with 1000+ users
+    // Query chat rooms where current user is a participant
     return _firestore
-        .collection('users')
-        .doc(currentUserId)
         .collection('chat_rooms')
+        .where('participantIds', arrayContains: currentUserId)
         .orderBy('lastMessageTimestamp', descending: true)
-        .limit(50) // Limit for performance
         .snapshots()
-        .asyncMap((snapshot) async {
-      // Batch fetch user profiles to avoid N+1 queries
-      final List<String> otherUserIds = snapshot.docs
-          .map((doc) => doc.data()['otherUserId'] as String?)
-          .where((id) => id != null)
-          .cast<String>()
-          .toList();
-      
-      final userProfiles = await _batchGetUserProfiles(otherUserIds);
-      
-      // Convert to ChatRoom objects with cached user data
-      return snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return ChatRoom.fromUserChatReference(doc.id, data, userProfiles);
-      }).toList();
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => ChatRoom.fromFirestore(doc)).toList();
     });
   }
 
-  /// Batch fetch user profiles to avoid N+1 query problem
-  Future<Map<String, Map<String, dynamic>>> _batchGetUserProfiles(List<String> userIds) async {
-    final Map<String, Map<String, dynamic>> profiles = {};
-    
-    if (userIds.isEmpty) return profiles;
-    
-    // Batch reads in chunks of 10 (Firestore limit)
-    for (int i = 0; i < userIds.length; i += 10) {
-      final chunk = userIds.skip(i).take(10).toList();
-      
-      final List<Future<DocumentSnapshot>> futures = chunk.map((userId) =>
-          _firestore.collection('users').doc(userId).get()
-      ).toList();
-      
-      final results = await Future.wait(futures);
-      for (int j = 0; j < results.length; j++) {
-        if (results[j].exists) {
-          profiles[chunk[j]] = results[j].data() as Map<String, dynamic>;
-        }
-      }
-    }
-    
-    return profiles;
-  }
-
-  /// Creates a chat room specifically for a meetup between two users (SCALABLE VERSION)
+  /// SIMPLIFIED: Creates a chat room for a meetup between two users
   Future<String> createMeetupChatRoom(String otherUserId, String meetupId) async {
     if (currentUserId == null) throw Exception('User not authenticated');
+    
+    print('💬 Creating chat room...');
+    print('   Current user: $currentUserId');
+    print('   Other user: $otherUserId');
+    print('   Meetup ID: $meetupId');
 
+    // Create room ID from sorted participant IDs
     List<String> participants = [currentUserId!, otherUserId];
     participants.sort();
     String roomId = participants.join('_');
 
-    final roomDoc = _firestore.collection('chat_rooms').doc(roomId);
-    final snapshot = await roomDoc.get();
-    final currentTimestamp = Timestamp.now();
+    try {
+      final roomDoc = _firestore.collection('chat_rooms').doc(roomId);
+      final snapshot = await roomDoc.get();
+      final currentTimestamp = Timestamp.now();
 
-    if (!snapshot.exists) {
-      // Use batched writes for better performance and atomicity
-      final batch = _firestore.batch();
-      
-      // Create main chat room
-      final newRoom = ChatRoom(
-        roomId: roomId,
-        participantIds: participants,
-        lastMessageTimestamp: currentTimestamp,
-        createdAt: currentTimestamp,
-        meetupId: meetupId,
-      );
-      batch.set(roomDoc, newRoom.toFirestore());
-      
-      // Create user-specific chat references for scalable queries
-      await _createUserChatReferences(batch, roomId, currentUserId!, otherUserId, meetupId, currentTimestamp);
-      
-      await batch.commit();
-      
-      // Add system message after creating room structure
-      final systemMessage = ChatMessage(
-        messageId: '',
-        senderId: 'system',
-        receiverId: 'all',
-        content: 'You are now connected! Your meetup has been confirmed.',
-        timestamp: currentTimestamp,
-        messageType: 'system',
-      );
-      
-      await sendMessage(roomId, systemMessage);
-      print('✅ Scalable meetup chat room created: $roomId for meetup: $meetupId');
-    } else {
-      // Update existing room and user references
-      final batch = _firestore.batch();
-      
-      batch.update(roomDoc, {
-        'meetupId': meetupId,
-        'lastUpdated': currentTimestamp,
-      });
-      
-      // Update user chat references
-      batch.update(
-        _firestore.collection('users').doc(currentUserId).collection('chat_rooms').doc(roomId),
-        {'meetupId': meetupId, 'lastUpdated': currentTimestamp}
-      );
-      batch.update(
-        _firestore.collection('users').doc(otherUserId).collection('chat_rooms').doc(roomId),
-        {'meetupId': meetupId, 'lastUpdated': currentTimestamp}
-      );
-      
-      await batch.commit();
-      print('✅ Existing scalable chat room updated with meetup: $meetupId');
+      if (!snapshot.exists) {
+        // Create new chat room - SIMPLE VERSION
+        final newRoom = ChatRoom(
+          roomId: roomId,
+          participantIds: participants,
+          lastMessage: 'Chat created',
+          lastMessageTimestamp: currentTimestamp,
+          lastMessageSenderId: 'system',
+          createdAt: currentTimestamp,
+          meetupId: meetupId,
+        );
+        
+        await roomDoc.set(newRoom.toFirestore());
+        print('✅ New chat room created: $roomId');
+        
+        // Add welcome message
+        final welcomeMessage = ChatMessage(
+          messageId: _firestore.collection('chat_rooms').doc(roomId).collection('messages').doc().id,
+          senderId: 'system',
+          receiverId: 'all',
+          content: 'You are now connected! Your meetup has been confirmed.',
+          timestamp: currentTimestamp,
+          messageType: 'system',
+        );
+        
+        await _firestore
+          .collection('chat_rooms')
+          .doc(roomId)
+          .collection('messages')
+          .doc(welcomeMessage.messageId)
+          .set(welcomeMessage.toFirestore());
+        
+        print('✅ Welcome message added');
+      } else {
+        // Update existing room with meetup info
+        await roomDoc.update({
+          'meetupId': meetupId,
+          'lastUpdated': currentTimestamp,
+        });
+        print('✅ Existing chat room updated with meetup: $meetupId');
+      }
+
+      return roomId;
+    } catch (e) {
+      print('❌ Error in createMeetupChatRoom: $e');
+      rethrow;
     }
-
-    return roomId;
-  }
-
-  /// Creates user-specific chat references for scalable queries
-  Future<void> _createUserChatReferences(WriteBatch batch, String chatRoomId, String user1Id, String user2Id, String meetupId, Timestamp timestamp) async {
-    // User 1's chat reference
-    batch.set(
-      _firestore.collection('users').doc(user1Id).collection('chat_rooms').doc(chatRoomId),
-      {
-        'chatRoomId': chatRoomId,
-        'otherUserId': user2Id,
-        'lastMessageTimestamp': timestamp,
-        'unreadCount': 0,
-        'lastMessage': '',
-        'lastMessageSenderId': '',
-        'meetupId': meetupId,
-        'createdAt': timestamp,
-      }
-    );
-    
-    // User 2's chat reference
-    batch.set(
-      _firestore.collection('users').doc(user2Id).collection('chat_rooms').doc(chatRoomId),
-      {
-        'chatRoomId': chatRoomId,
-        'otherUserId': user1Id,
-        'lastMessageTimestamp': timestamp,
-        'unreadCount': 0,
-        'lastMessage': '',
-        'lastMessageSenderId': '',
-        'meetupId': meetupId,
-        'createdAt': timestamp,
-      }
-    );
   }
 
 
@@ -696,10 +590,18 @@ class FirebaseService {
     }
   }
 
+  /// Initialize FCM notifications and request permissions
   Future<void> initNotifications() async {
-    if (currentUserId == null) return;
+    if (currentUserId == null) {
+      print('⚠️ Cannot initialize notifications: user not authenticated');
+      return;
+    }
+
     try {
       final messaging = FirebaseMessaging.instance;
+
+      // Request notification permissions
+      print('📱 Requesting notification permissions...');
       final settings = await messaging.requestPermission(
         alert: true,
         announcement: false,
@@ -709,29 +611,116 @@ class FirebaseService {
         provisional: false,
         sound: true,
       );
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+
+      print('📱 Permission status: ${settings.authorizationStatus}');
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
         print('✅ User granted notification permission');
+
+        // Get FCM token
         final fcmToken = await messaging.getToken();
         if (fcmToken != null) {
-          print('📱 Got FCM Token: $fcmToken');
-          await _firestore.collection('users').doc(currentUserId).update({
-            'fcmToken': fcmToken,
-            'lastUpdated': FieldValue.serverTimestamp(),
-          });
-          print('✅ FCM token saved to user profile');
+          print('📱 Got FCM Token: ${fcmToken.substring(0, 20)}...');
+          
+          // Save token to Firestore
+          await _saveFcmToken(fcmToken);
+        } else {
+          print('⚠️ FCM token is null');
         }
-        messaging.onTokenRefresh.listen((newToken) {
-          print('🔄 FCM token refreshed: $newToken');
-          _firestore.collection('users').doc(currentUserId).update({
-            'fcmToken': newToken,
-            'lastUpdated': FieldValue.serverTimestamp(),
-          });
+
+        // Listen for token refresh
+        messaging.onTokenRefresh.listen((newToken) async {
+          print('🔄 FCM token refreshed: ${newToken.substring(0, 20)}...');
+          await _saveFcmToken(newToken);
+        }).onError((error) {
+          print('❌ Error on token refresh: $error');
         });
+
+        print('✅ Notification system initialized successfully');
+      } else if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        print('❌ User denied notification permission');
       } else {
-        print('❌ User declined or has not accepted notification permission');
+        print('⚠️ User has not accepted notification permission');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ Error initializing notifications: $e');
+      print('Stack trace: $stackTrace');
+    }
+  }
+
+  /// Save FCM token to Firestore
+  Future<void> _saveFcmToken(String token) async {
+    if (currentUserId == null) return;
+
+    try {
+      await _firestore.collection('users').doc(currentUserId).update({
+        'fcmToken': token,
+        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+      print('✅ FCM token saved to user profile');
+    } catch (e) {
+      print('❌ Error saving FCM token: $e');
+      // If update fails, try set with merge
+      try {
+        await _firestore.collection('users').doc(currentUserId).set({
+          'fcmToken': token,
+          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        print('✅ FCM token saved to user profile (via set with merge)');
+      } catch (setError) {
+        print('❌ Error saving FCM token with merge: $setError');
+      }
+    }
+  }
+
+  /// Clear FCM token from Firestore (call on logout)
+  Future<void> clearFcmToken() async {
+    if (currentUserId == null) return;
+
+    try {
+      // Delete FCM token from device
+      await FirebaseMessaging.instance.deleteToken();
+      print('✅ FCM token deleted from device');
+
+      // Clear token from Firestore
+      await _firestore.collection('users').doc(currentUserId).update({
+        'fcmToken': FieldValue.delete(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+      print('✅ FCM token cleared from user profile');
+    } catch (e) {
+      print('❌ Error clearing FCM token: $e');
+    }
+  }
+
+  /// Get the current FCM token
+  Future<String?> getFcmToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        print('📱 Current FCM token: ${token.substring(0, 20)}...');
+      } else {
+        print('⚠️ No FCM token available');
+      }
+      return token;
+    } catch (e) {
+      print('❌ Error getting FCM token: $e');
+      return null;
+    }
+  }
+
+  /// Check if notifications are enabled for this app
+  Future<bool> areNotificationsEnabled() async {
+    try {
+      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (e) {
+      print('❌ Error checking notification status: $e');
+      return false;
     }
   }
 
@@ -771,6 +760,9 @@ class FirebaseService {
       final String? userId = currentUserId;
       
       if (userId != null) {
+        // Clear FCM token before signing out
+        await clearFcmToken();
+        
         // Update user status to offline before signing out
         await _firestore.collection('users').doc(userId).update({
           'isOnline': false,
@@ -782,7 +774,7 @@ class FirebaseService {
 
       // Sign out from Firebase Auth
       await _auth.signOut();
-      print('✅ User signed out successfully');
+      print('✅ User signed out from Firebase Auth');
       
     } catch (e) {
       print('❌ Error during sign out: $e');

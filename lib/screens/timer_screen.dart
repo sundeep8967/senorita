@@ -25,13 +25,7 @@ class _TimerScreenState extends State<TimerScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            Navigator.pop(context);
-          },
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           'Meetup Requests',
           style: TextStyle(
@@ -321,31 +315,9 @@ class _TimerScreenState extends State<TimerScreen> {
       }
       
       // Update meetup status
+      // Note: Chat room creation is now handled automatically in meetup_repository_impl.dart
+      // when status is updated to 'accepted', so we don't need to create it here
       await _meetupRepository.updateMeetupStatus(meetupId, status);
-      
-      // If accepted, create chat room between both users
-      if (status == MeetupStatus.accepted) {
-        print('🎉 Meetup accepted! Creating chat room...');
-        
-        // Determine the other user (the one who sent the request)
-        final otherUserId = meetup.requestingUserId;
-        
-        // Create or get existing chat room
-        final chatRoomId = await _firebaseService.getOrCreateChatRoom(otherUserId);
-        print('✅ Chat room created/found: $chatRoomId');
-        
-        // Send an initial system message to the chat
-        final systemMessage = ChatMessage(
-          messageId: '',
-          senderId: 'system',
-          receiverId: otherUserId,
-          content: '🎉 Great! You both accepted the meetup request. Start chatting and plan your ${meetup.packageType} meetup!',
-          timestamp: Timestamp.now(),
-        );
-        
-        await _firebaseService.sendMessage(chatRoomId, systemMessage);
-        print('✅ Welcome message sent to chat room');
-      }
       
       final message = status == MeetupStatus.accepted 
           ? 'Meetup accepted! Chat created - check your chat list!' 

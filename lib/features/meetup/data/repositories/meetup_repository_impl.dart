@@ -2,24 +2,60 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/meetup_model.dart';
 import '../../domain/repositories/meetup_repository.dart';
 import '../../../../services/firebase_service.dart';
+import '../../../../services/notification_service.dart';
+import '../../../../services/app_notification_service.dart';
 
 class MeetupRepositoryImpl implements MeetupRepository {
   final FirebaseFirestore _firestore;
   final FirebaseService _firebaseService;
+  final NotificationService _notificationService;
+  final AppNotificationService _appNotificationService;
 
-  MeetupRepositoryImpl({FirebaseFirestore? firestore, FirebaseService? firebaseService})
-      : _firestore = firestore ?? FirebaseFirestore.instance,
-        _firebaseService = firebaseService ?? FirebaseService();
+  MeetupRepositoryImpl({
+    FirebaseFirestore? firestore,
+    FirebaseService? firebaseService,
+    NotificationService? notificationService,
+    AppNotificationService? appNotificationService,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _firebaseService = firebaseService ?? FirebaseService(),
+        _notificationService = notificationService ?? NotificationService(),
+        _appNotificationService = appNotificationService ?? AppNotificationService();
 
   CollectionReference get _meetups => _firestore.collection('meetups');
 
   @override
   Future<String> createMeetup(Meetup meetup) async {
     try {
+      // Create the meetup document
       final docRef = await _meetups.add(meetup.toFirestore());
-      return docRef.id;
+      final meetupId = docRef.id;
+      print('✅ Meetup created with ID: $meetupId');
+      
+      // Create in-app notification for invited user
+      try {
+        final requesterProfile = await _firestore
+            .collection('users')
+            .doc(meetup.requestingUserId)
+            .get();
+        
+        if (requesterProfile.exists) {
+          final requesterName = requesterProfile.data()?['fullName'] ?? 'Someone';
+          
+          await _appNotificationService.createMeetupRequestNotification(
+            receiverId: meetup.invitedUserId,
+            requesterName: requesterName,
+            meetupId: meetupId,
+          );
+          print('✅ In-app notification created for meetup request');
+        }
+      } catch (notifError) {
+        print('⚠️ Error creating in-app notification: $notifError');
+        // Don't fail meetup creation if notification fails
+      }
+      
+      return meetupId;
     } catch (e) {
-      print('Error creating meetup: $e');
+      print('❌ Error creating meetup: $e');
       rethrow;
     }
   }
@@ -58,7 +94,21 @@ class MeetupRepositoryImpl implements MeetupRepository {
         meetups[doc.id] = Meetup.fromFirestore(doc);
       }
 
-      return meetups.values.toList();
+      // Sort meetups: Pending first, then everything else by time
+      final sortedMeetups = meetups.values.toList()
+        ..sort((a, b) {
+          // Pending requests always come first
+          final aIsPending = a.status == MeetupStatus.pending;
+          final bIsPending = b.status == MeetupStatus.pending;
+          
+          if (aIsPending && !bIsPending) return -1;
+          if (!aIsPending && bIsPending) return 1;
+          
+          // For everything else, just sort by most recent first
+          return b.createdAt.compareTo(a.createdAt);
+        });
+
+      return sortedMeetups;
     });
   }
 
@@ -103,8 +153,29 @@ class MeetupRepositoryImpl implements MeetupRepository {
               
               // Create the chat room for this meetup
               final chatRoomId = await _firebaseService.createMeetupChatRoom(otherUserId, meetupId);
-              print('✅ Chat room created automatically: $chatRoomId');
-              print('💬 Both users should now see each other in their chat list');
+              print('✅ Chat room created: $chatRoomId');
+              print('💬 Users can now chat with each other');
+              
+              // Create in-app notification for the other user
+              try {
+                final accepterProfile = await _firestore
+                    .collection('users')
+                    .doc(currentUserId)
+                    .get();
+                
+                if (accepterProfile.exists) {
+                  final accepterName = accepterProfile.data()?['fullName'] ?? 'Someone';
+                  
+                  await _appNotificationService.createMeetupAcceptedNotification(
+                    receiverId: otherUserId,
+                    accepterName: accepterName,
+                    meetupId: meetupId,
+                  );
+                  print('✅ In-app notification created for meetup acceptance');
+                }
+              } catch (notifError) {
+                print('⚠️ Error creating in-app notification: $notifError');
+              }
             } else {
               print('❌ No current user ID available');
             }

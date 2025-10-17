@@ -56,5 +56,17 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Firebase Cloud Messaging -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<!-- Background modes for notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+	<!-- Notification permissions -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>We need your permission to send you notifications about new messages and meetup requests.</string>
 </dict>
 </plist>

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:senorita/services/firebase_service.dart';
 import 'package:senorita/models/user_profile.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'home_screen.dart';
 import 'welcome_screen.dart';
 
@@ -974,7 +975,20 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
         },
       );
 
+      // Sign out from Firebase Auth
       await _firebaseService.signOut();
+      print('✅ Signed out from Firebase');
+      
+      // Sign out from Google Sign-In to clear cached account
+      try {
+        final GoogleSignIn googleSignIn = GoogleSignIn();
+        await googleSignIn.signOut();
+        print('✅ Signed out from Google Sign-In');
+      } catch (googleSignOutError) {
+        print('⚠️ Error signing out from Google: $googleSignOutError');
+        // Continue with logout even if Google sign-out fails
+      }
+      
       Navigator.of(context).pop();
 
       Navigator.of(context).pushAndRemoveUntil(

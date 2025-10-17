@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notification channel for Senorita app -->
+    <string name="default_notification_channel_id" translatable="false">senorita_channel</string>
+    <string name="default_notification_channel_name">Senorita Notifications</string>
+    <string name="default_notification_channel_description">Notifications for messages and meetup requests</string>
+</resources>

@@ -23,13 +23,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            Navigator.pop(context);
-          },
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           'Messages',
           style: TextStyle(
@@ -146,7 +140,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   itemBuilder: (context, index) {
                     final doc = chatRoomDocs[index];
                     final data = doc.data() as Map<String, dynamic>;
-                    return _buildChatItemFromUserReference(context, doc.id, data);
+                    return _buildChatItemFromRoomDoc(context, doc.id, data);
                   },
                 );
               },
@@ -163,22 +157,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
       print('❌ No current user ID for chat rooms stream');
       return const Stream.empty();
     }
-    
-    print('🔍 Getting chat rooms for user: $currentUserId (SCALABLE VERSION)');
-    
-    // Use user-specific subcollection for better performance with 1000+ users
+
+    print('🔍 Getting chat rooms for user: $currentUserId (chat_rooms/ with arrayContains)');
+
     return FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
         .collection('chat_rooms')
+        .where('participantIds', arrayContains: currentUserId)
         .orderBy('lastMessageTimestamp', descending: true)
-        .limit(50) // Limit for performance
         .snapshots()
         .map((snapshot) {
           print('📱 Chat rooms found: ${snapshot.docs.length}');
           for (var doc in snapshot.docs) {
             final data = doc.data() as Map<String, dynamic>;
-            print('  - Room: ${doc.id}, otherUser: ${data['otherUserId']}, meetupId: ${data['meetupId']}');
+            final parts = (data['participantIds'] as List<dynamic>? ?? []).cast<String>();
+            final other = parts.firstWhere((p) => p != currentUserId, orElse: () => '');
+            print('  - Room: ${doc.id}, otherUser: $other, meetupId: ${data['meetupId']}');
           }
           return snapshot;
         });
@@ -203,8 +196,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return null;
   }
 
-  Widget _buildChatItemFromUserReference(BuildContext context, String chatRoomId, Map<String, dynamic> data) {
-    final otherUserId = data['otherUserId'] as String? ?? '';
+  Widget _buildChatItemFromRoomDoc(BuildContext context, String chatRoomId, Map<String, dynamic> data) {
+    final currentUserId = _firebaseService.currentUserId ?? '';
+    final participants = (data['participantIds'] as List<dynamic>? ?? []).cast<String>();
+    final otherUserId = participants.firstWhere((p) => p != currentUserId, orElse: () => '');
     
     return FutureBuilder<Map<String, dynamic>?>(
       future: _getUserProfile(otherUserId),
@@ -214,7 +209,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
         final userAge = otherUser?['age']?.toString() ?? '';
         final lastMessage = data['lastMessage'] as String? ?? '';
         final lastMessageTimestamp = data['lastMessageTimestamp'] as Timestamp? ?? Timestamp.now();
-        final unreadCount = data['unreadCount'] as int? ?? 0;
+        // unreadCount not tracked in simplified version
+        const int unreadCount = 0;
         
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
