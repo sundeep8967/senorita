@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:senorita/services/firebase_service.dart';
+import 'package:senorita/services/supabase_service.dart';
 import 'package:senorita/models/user_profile.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'home_screen.dart';
 import 'welcome_screen.dart';
 
@@ -449,99 +451,163 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
   }
 
   Widget _buildUserCodeSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              Icons.qr_code,
-              color: Colors.blue,
-              size: 24,
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Your Code',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  _userCode == null
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Generating...',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ],
-                        )
-                      : Text(
-                          _userCode!,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.blue,
-                            letterSpacing: 2,
-                          ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.qr_code,
+                  color: Colors.blue,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Your Code',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Share this code with friends to connect',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.6),
+                      ),
+                      const SizedBox(height: 4),
+                      _userCode == null
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Generating...',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              _userCode!,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.blue,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Share this code with friends',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _userCode != null ? _copyUserCode : null,
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (_userCode != null ? Colors.blue : Colors.grey).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.copy,
+                      color: _userCode != null ? Colors.blue : Colors.grey,
+                      size: 20,
                     ),
                   ),
-                ],
-              ),
-            ),
-            IconButton(
-              onPressed: _userCode != null ? _copyUserCode : null,
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: (_userCode != null ? Colors.blue : Colors.grey).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.copy,
-                  color: _userCode != null ? Colors.blue : Colors.grey,
-                  size: 20,
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        
+        // Free Dates Section
+        if (_userProfile != null && (_userProfile!['freeDatesRemaining'] ?? 0) > 0) ...[
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.green.withOpacity(0.2), Colors.green.withOpacity(0.1)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.green.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.card_giftcard,
+                  color: Colors.green,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_userProfile!['freeDatesRemaining']} Free Date${(_userProfile!['freeDatesRemaining'] ?? 0) > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'You have free snacks to use on your dates!',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        ],
+      ],
     );
   }
 
@@ -890,6 +956,34 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => _showDeleteAccountConfirmation(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.withOpacity(0.1),
+              foregroundColor: Colors.red,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(
+                  color: Colors.red,
+                  width: 1,
+                ),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Delete Account',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1002,6 +1096,248 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       Navigator.of(context).pop();
       print('❌ Logout error: $e');
       _showSnackBar('Error logging out. Please try again.');
+    }
+  }
+
+  void _showDeleteAccountConfirmation() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            '⚠️ Delete Account',
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'This action is PERMANENT and cannot be undone.\n\nAll your data including:\n• Profile information\n• Photos\n• Chat history\n• Meetup history\n\nwill be permanently deleted.\n\nAre you absolutely sure?',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 15,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _performDeleteAccount();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'Delete Forever',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performDeleteAccount() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Deleting account...',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final currentUserId = _firebaseService.currentUserId;
+      if (currentUserId == null) throw Exception('No user logged in');
+
+      print('🗑️ Starting account deletion for user: $currentUserId');
+
+      // 1. Delete user photos from Supabase Storage
+      try {
+        print('🗑️ Deleting photos from Supabase...');
+        final supabaseService = SupabaseService.instance;
+        await supabaseService.deleteAllUserPhotos(currentUserId);
+        print('✅ Photos deleted from Supabase');
+      } catch (e) {
+        print('⚠️ Error deleting photos from Supabase: $e');
+      }
+
+      // 2. Delete Firestore data
+      final firestore = FirebaseFirestore.instance;
+      
+      // Delete user document
+      print('🗑️ Deleting user document...');
+      await firestore.collection('users').doc(currentUserId).delete();
+      
+      // Delete chat rooms where user is participant
+      print('🗑️ Deleting chat rooms...');
+      final chatRooms = await firestore
+          .collection('chat_rooms')
+          .where('participantIds', arrayContains: currentUserId)
+          .get();
+      
+      for (var chatRoom in chatRooms.docs) {
+        // Delete all messages in the chat room
+        final messages = await chatRoom.reference.collection('messages').get();
+        for (var message in messages.docs) {
+          await message.reference.delete();
+        }
+        // Delete the chat room
+        await chatRoom.reference.delete();
+      }
+      
+      // Delete meetups where user is involved
+      print('🗑️ Deleting meetups...');
+      final meetupsRequesting = await firestore
+          .collection('meetups')
+          .where('requestingUserId', isEqualTo: currentUserId)
+          .get();
+      for (var meetup in meetupsRequesting.docs) {
+        await meetup.reference.delete();
+      }
+      
+      final meetupsInvited = await firestore
+          .collection('meetups')
+          .where('invitedUserId', isEqualTo: currentUserId)
+          .get();
+      for (var meetup in meetupsInvited.docs) {
+        await meetup.reference.delete();
+      }
+      
+      // Delete notifications
+      print('🗑️ Deleting notifications...');
+      final notifications = await firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
+      for (var notification in notifications.docs) {
+        await notification.reference.delete();
+      }
+
+      // 3. Delete Firebase Auth user
+      print('🗑️ Deleting Firebase Auth user...');
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await currentUser.delete();
+      }
+
+      // 4. Sign out from Google
+      try {
+        final GoogleSignIn googleSignIn = GoogleSignIn();
+        await googleSignIn.signOut();
+      } catch (e) {
+        print('⚠️ Error signing out from Google: $e');
+      }
+
+      print('✅ Account deletion complete');
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Navigate to welcome screen
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const RayaWelcomeScreen()),
+        (Route<dynamic> route) => false,
+      );
+
+      // Show confirmation
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your account has been permanently deleted'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      
+    } catch (e) {
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      print('❌ Account deletion error: $e');
+      
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.grey[900],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Error',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'Failed to delete account: ${e.toString()}\n\nPlease try again or contact support.',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 15,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 }

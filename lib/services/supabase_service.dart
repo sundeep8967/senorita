@@ -283,4 +283,54 @@ class SupabaseService {
       return {'personal': [], 'verification': []};
     }
   }
+
+  /// Delete all photos for a user from Supabase Storage
+  Future<void> deleteAllUserPhotos(String userId) async {
+    try {
+      print('🗑️ Deleting all photos for user: $userId');
+      
+      // Delete personal images
+      final personalPath = '$userId/personal/';
+      try {
+        final personalList = await serviceClient.storage
+            .from('senorita-images-bucket')
+            .list(path: personalPath);
+        
+        for (final file in personalList) {
+          if (file.name != '.keep') {
+            await serviceClient.storage
+                .from('senorita-images-bucket')
+                .remove(['$personalPath${file.name}']);
+            print('✅ Deleted: $personalPath${file.name}');
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error deleting personal photos: $e');
+      }
+      
+      // Delete verification images
+      final verificationPath = '$userId/verification/';
+      try {
+        final verificationList = await serviceClient.storage
+            .from('senorita-images-bucket')
+            .list(path: verificationPath);
+        
+        for (final file in verificationList) {
+          if (file.name != '.keep') {
+            await serviceClient.storage
+                .from('senorita-images-bucket')
+                .remove(['$verificationPath${file.name}']);
+            print('✅ Deleted: $verificationPath${file.name}');
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error deleting verification photos: $e');
+      }
+      
+      print('✅ All photos deleted for user: $userId');
+    } catch (e) {
+      print('❌ Error deleting user photos: $e');
+      rethrow;
+    }
+  }
 }

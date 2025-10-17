@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:senorita/features/meetup/domain/models/meetup_model.dart';
 import 'package:senorita/features/meetup/data/repositories/meetup_repository_impl.dart';
 import 'package:senorita/services/firebase_service.dart';
-import 'package:senorita/models/chat_message.dart';
+import 'package:senorita/screens/chat_screen.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({Key? key}) : super(key: key);
@@ -220,7 +220,8 @@ class _TimerScreenState extends State<TimerScreen> {
                   ],
                 ),
                 
-                if (isRequestReceived && meetup.status == MeetupStatus.pending) ...[
+                if (isRequestReceived) ...[
+                  if (meetup.status == MeetupStatus.pending) ...[
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -251,6 +252,22 @@ class _TimerScreenState extends State<TimerScreen> {
                       ),
                     ],
                   ),
+                  ] else if (meetup.status == MeetupStatus.accepted) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _navigateToChat(meetup),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Open Chat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -319,22 +336,24 @@ class _TimerScreenState extends State<TimerScreen> {
       // when status is updated to 'accepted', so we don't need to create it here
       await _meetupRepository.updateMeetupStatus(meetupId, status);
       
-      final message = status == MeetupStatus.accepted 
-          ? 'Meetup accepted! Chat created - check your chat list!' 
-          : 'Meetup declined';
-      final color = status == MeetupStatus.accepted ? Colors.green : Colors.red;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: color,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+      if (status == MeetupStatus.accepted) {
+        // Navigate to chat after accepting
+        await Future.delayed(const Duration(milliseconds: 500));
+        _navigateToChat(meetup);
+      } else {
+        // Show declined message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Meetup declined'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(15)),
+            ),
+            duration: Duration(seconds: 2),
           ),
-          duration: const Duration(seconds: 4),
-        ),
-      );
+        );
+      }
     } catch (e) {
       print('❌ Error handling meetup response: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -342,6 +361,55 @@ class _TimerScreenState extends State<TimerScreen> {
           content: Text('Error: $e'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _navigateToChat(Meetup meetup) async {
+    try {
+      // Determine the other user
+      final currentUserId = _firebaseService.currentUserId;
+      if (currentUserId == null) return;
+      
+      final otherUserId = currentUserId == meetup.requestingUserId
+          ? meetup.invitedUserId
+          : meetup.requestingUserId;
+      
+      // Get other user's profile
+      final otherUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUserId)
+          .get();
+      
+      if (!otherUserDoc.exists) {
+        print('❌ Other user not found');
+        return;
+      }
+      
+      final otherUserData = otherUserDoc.data()!;
+      final otherUserName = otherUserData['fullName'] ?? 'User';
+      final otherUserAvatar = (otherUserData['photos'] as List<dynamic>?)?.isNotEmpty == true
+          ? otherUserData['photos'][0]
+          : '';
+      
+      // Navigate to chat screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            otherUserId: otherUserId,
+            otherUserName: otherUserName,
+            otherUserAvatar: otherUserAvatar,
+          ),
+        ),
+      );
+    } catch (e) {
+      print('❌ Error navigating to chat: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error opening chat'),
+          backgroundColor: Colors.red,
         ),
       );
     }

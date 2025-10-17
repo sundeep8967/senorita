@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firebase_service.dart';
 import 'application_flow_screen.dart';
 import 'home_screen.dart';
+import 'invite_code_screen.dart';
 
 class RayaWelcomeScreen extends StatefulWidget {
   const RayaWelcomeScreen({Key? key}) : super(key: key);
@@ -225,12 +226,12 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
             MaterialPageRoute(builder: (context) => const HomeScreen()),
           );
         } else {
-          // Initialize Firebase profile and proceed with onboarding
+          // Initialize Firebase profile and proceed with invite code screen
           await _initializeFirebaseProfile();
-          print('▶️ Starting onboarding flow...');
+          print('▶️ Going to invite code screen...');
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const SenoritaApplicationScreen()),
+            MaterialPageRoute(builder: (context) => const InviteCodeScreen()),
           );
         }
       } else {
@@ -763,73 +764,7 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
           ),
         ),
         
-        const SizedBox(height: 20),
-        
-        // I Have a Code button with glassmorphism
-        Container(
-          width: double.infinity,
-          height: 60,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: Colors.white.withOpacity(0.5)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 15,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: OutlinedButton(
-            onPressed: () {
-              // Handle code action
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF495057),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              side: const BorderSide(color: Colors.transparent),
-            ),
-            child: const Text(
-              'I Have a Code',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 20),
-        
-        // Learn more link with modern styling
-        GestureDetector(
-          onTap: () {
-            _showAboutDialog();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'Learn More About Senorita',
-              style: TextStyle(
-                color: Color(0xFF495057),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 30),
+        const SizedBox(height: 40),
       ],
     );
   }

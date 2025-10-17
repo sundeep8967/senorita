@@ -204,8 +204,64 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return FutureBuilder<Map<String, dynamic>?>(
       future: _getUserProfile(otherUserId),
       builder: (context, snapshot) {
+        // Show loading shimmer while fetching user data
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            height: 80,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            height: 16,
+                            width: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 12,
+                            width: 180,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        
         final otherUser = snapshot.data;
-        final userName = otherUser?['fullName'] ?? 'Unknown User';
+        final userName = otherUser?['fullName'] ?? 'User';
         final userAge = otherUser?['age']?.toString() ?? '';
         final lastMessage = data['lastMessage'] as String? ?? '';
         final lastMessageTimestamp = data['lastMessageTimestamp'] as Timestamp? ?? Timestamp.now();
