@@ -304,4 +304,182 @@ class NotificationService {
       return true; // Default to enabled on error
     }
   }
+
+  // ==================== CALENDAR FEATURE NOTIFICATIONS ====================
+
+  /// Send notification when other user selects dates
+  Future<bool> sendDateSelectionNotification({
+    required String receiverId,
+    required String senderName,
+    required int dateCount,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '📅 $senderName selected dates',
+      body: '$senderName selected $dateCount available date${dateCount > 1 ? 's' : ''} for your meetup!',
+      type: 'date_selection',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'action': 'open_calendar',
+      },
+    );
+  }
+
+  /// Send notification when dates match
+  Future<bool> sendDateMatchNotification({
+    required String receiverId,
+    required String otherUserName,
+    required int matchCount,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '🎉 You have matching dates!',
+      body: 'You and $otherUserName are both available on $matchCount date${matchCount > 1 ? 's' : ''}! Pick a time now.',
+      type: 'date_match',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'action': 'open_chat',
+      },
+    );
+  }
+
+  /// Send notification when other user picks time
+  Future<bool> sendTimeSelectionNotification({
+    required String receiverId,
+    required String senderName,
+    required String time,
+    required String date,
+    required String chatRoomId,
+    required bool isGirl,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: isGirl ? '👑 $senderName picked the time' : '⏰ $senderName confirmed time',
+      body: isGirl 
+          ? '$senderName chose $time for $date. Pick your preferred time!'
+          : '$senderName picked $time for $date. Meetup confirmed!',
+      type: 'time_selection',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'action': 'open_chat',
+      },
+    );
+  }
+
+  /// Send reminder notification 24h before meetup
+  Future<bool> sendMeetupReminderNotification({
+    required String receiverId,
+    required String otherUserName,
+    required String date,
+    required String time,
+    required String verificationCode,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '🔔 Meetup Tomorrow!',
+      body: 'Your meetup with $otherUserName is tomorrow at $time. Your code: $verificationCode',
+      type: 'meetup_reminder',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'verificationCode': verificationCode,
+        'action': 'open_chat',
+      },
+    );
+  }
+
+  /// Send notification requesting rating after meetup
+  Future<bool> sendRatingRequestNotification({
+    required String receiverId,
+    required String otherUserName,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '⭐ How was your date?',
+      body: 'Rate your experience with $otherUserName to help our community!',
+      type: 'rating_request',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'action': 'open_rating',
+      },
+    );
+  }
+
+  /// Send deadline warning notification
+  Future<bool> sendDeadlineWarningNotification({
+    required String receiverId,
+    required String otherUserName,
+    required int hoursRemaining,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '⚠️ ${hoursRemaining}h to select dates!',
+      body: 'Pick dates with $otherUserName soon or your meetup will be cancelled.',
+      type: 'deadline_warning',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'action': 'open_calendar',
+      },
+    );
+  }
+
+  /// Send notification when meetup is abandoned
+  Future<bool> sendMeetupAbandonedNotification({
+    required String receiverId,
+    required String otherUserName,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '😔 Meetup Cancelled',
+      body: 'Your meetup with $otherUserName was cancelled due to no date selection.',
+      type: 'meetup_abandoned',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+      },
+    );
+  }
+
+  /// Send notification when reschedule is requested
+  Future<bool> sendRescheduleRequestNotification({
+    required String receiverId,
+    required String requesterName,
+    required String oldDate,
+    required String newDate,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '📅 Reschedule Request',
+      body: '$requesterName wants to change $oldDate to $newDate. Approve?',
+      type: 'reschedule_request',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'action': 'open_chat',
+      },
+    );
+  }
+
+  /// Send notification when reschedule is approved
+  Future<bool> sendRescheduleApprovedNotification({
+    required String receiverId,
+    required String approverName,
+    required String newDate,
+    required String chatRoomId,
+  }) async {
+    return await sendCustomNotification(
+      receiverId: receiverId,
+      title: '✅ Reschedule Approved',
+      body: '$approverName approved! Your meetup is now on $newDate.',
+      type: 'reschedule_approved',
+      additionalData: {
+        'chatRoomId': chatRoomId,
+        'action': 'open_chat',
+      },
+    );
+  }
 }

@@ -98,5 +98,47 @@ service cloud.firestore {
     match /debug_test/{document=**} {
       allow read, write: if request.auth != null;
     }
+    
+    // Date selections for calendar feature
+    match /date_selections/{selectionId} {
+      // Users can read/write their own date selections
+      // Format: chatRoomId_userId
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Meetup schedules for matched dates
+    match /meetup_schedules/{chatRoomId} {
+      // Both participants in a chat can read/write the schedule
+      allow read, write: if request.auth != null;
+    }
+    
+    // Meetup ratings
+    match /meetup_ratings/{ratingId} {
+      // Users can read their own ratings (given and received)
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.raterId || 
+         request.auth.uid == resource.data.ratedUserId);
+      // Users can create ratings for others
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.raterId;
+    }
+    
+    // User reliability scores
+    match /user_reliability/{userId} {
+      // Users can read any reliability score
+      allow read: if request.auth != null;
+      // Only system can write (through Cloud Functions ideally)
+      allow write: if request.auth != null;
+    }
+    
+    // Reschedule requests
+    match /reschedule_requests/{rescheduleId} {
+      // Participants can read/write reschedule requests
+      allow read, write: if request.auth != null;
+    }
   }
 }

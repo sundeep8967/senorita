@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:senorita/features/meetup/domain/models/meetup_model.dart';
 import 'package:senorita/features/meetup/data/repositories/meetup_repository_impl.dart';
 import 'package:senorita/services/firebase_service.dart';
+import 'package:senorita/services/date_selection_service.dart';
 import 'package:senorita/screens/chat_screen.dart';
 
 class TimerScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class TimerScreen extends StatefulWidget {
 class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStateMixin {
   final FirebaseService _firebaseService = FirebaseService();
   final MeetupRepositoryImpl _meetupRepository = MeetupRepositoryImpl();
+  final DateSelectionService _dateSelectionService = DateSelectionService();
   late TabController _tabController;
   
   @override
@@ -533,6 +535,58 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
       
       // Update meetup status
       await _meetupRepository.updateMeetupStatus(meetupId, status);
+      
+      // If accepted, initialize the meetup schedule with deadline and codes
+      if (status == MeetupStatus.accepted) {
+        // Determine boy and girl user IDs
+        final requestingUserDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(meetup.requestingUserId)
+            .get();
+        final invitedUserDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(meetup.invitedUserId)
+            .get();
+
+        final requestingGender = requestingUserDoc.data()?['gender'] ?? 'male';
+        final invitedGender = invitedUserDoc.data()?['gender'] ?? 'female';
+
+        final boyUserId = requestingGender == 'male' 
+            ? meetup.requestingUserId 
+            : meetup.invitedUserId;
+        final girlUserId = requestingGender == 'female' 
+            ? meetup.requestingUserId 
+            : meetup.invitedUserId;
+
+        // Get chat room ID
+        final currentUserId = _firebaseService.currentUserId!;
+        final otherUserId = currentUserId == meetup.requestingUserId
+            ? meetup.invitedUserId
+            : meetup.requestingUserId;
+
+        final chatRoomQuery = await FirebaseFirestore.instance
+            .collection('chat_rooms')
+            .where('participantIds', arrayContains: currentUserId)
+            .get();
+
+        String? chatRoomId;
+        for (var doc in chatRoomQuery.docs) {
+          final participants = List<String>.from(doc.data()['participantIds'] ?? []);
+          if (participants.contains(otherUserId)) {
+            chatRoomId = doc.id;
+            break;
+          }
+        }
+
+        if (chatRoomId != null) {
+          await _dateSelectionService.initializeMeetupSchedule(
+            chatRoomId: chatRoomId,
+            participantIds: [meetup.requestingUserId, meetup.invitedUserId],
+            boyUserId: boyUserId,
+            girlUserId: girlUserId,
+          );
+        }
+      }
       
       // Small delay to show the loading indicator
       await Future.delayed(const Duration(milliseconds: 800));
