@@ -65,20 +65,112 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
     }
   }
 
-  void _toggleDate(DateTime date) {
-    setState(() {
-      final normalizedDate = DateTime(date.year, date.month, date.day);
-      final index = _selectedDates.indexWhere((d) =>
-          d.year == normalizedDate.year &&
-          d.month == normalizedDate.month &&
-          d.day == normalizedDate.day);
+  Future<void> _toggleDate(DateTime date) async {
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    
+    // Check if date is already selected - if so, just remove it
+    final index = _selectedDates.indexWhere((d) =>
+      d.year == normalizedDate.year &&
+      d.month == normalizedDate.month &&
+      d.day == normalizedDate.day);
 
-      if (index >= 0) {
+    if (index >= 0) {
+      setState(() {
         _selectedDates.removeAt(index);
-      } else {
-        _selectedDates.add(normalizedDate);
-      }
+      });
+      return;
+    }
+
+    // Check for conflicts with other meetups (only if adding)
+    final hasConflict = await _checkDateConflict(normalizedDate);
+    
+    if (hasConflict && mounted) {
+      // Show conflict dialog
+      _showDateConflictDialog(normalizedDate);
+      return;
+    }
+
+    // No conflict, add the date
+    setState(() {
+      _selectedDates.add(normalizedDate);
     });
+  }
+
+  Future<bool> _checkDateConflict(DateTime date) async {
+    try {
+      final currentUserId = _firebaseService.currentUserId!;
+      
+      // Get all meetup schedules for current user
+      final snapshot = await FirebaseFirestore.instance
+          .collection('meetup_schedules')
+          .where('participantIds', arrayContains: currentUserId)
+          .get();
+
+      // Check each schedule for confirmed dates matching the selected date
+      for (final doc in snapshot.docs) {
+        // Skip the current chat room
+        if (doc.id == widget.chatRoomId) continue;
+
+        final schedule = MeetupSchedule.fromFirestore(doc);
+        
+        // Check if any confirmed date matches
+        for (final matchedDate in schedule.matchedDates) {
+          if (matchedDate.isConfirmed) {
+            final meetupDate = DateTime(
+              matchedDate.date.year,
+              matchedDate.date.month,
+              matchedDate.date.day,
+            );
+            
+            if (meetupDate.year == date.year &&
+                meetupDate.month == date.month &&
+                meetupDate.day == date.day) {
+              return true; // Conflict found
+            }
+          }
+        }
+      }
+      
+      return false; // No conflict
+    } catch (e) {
+      print('Error checking date conflict: $e');
+      return false;
+    }
+  }
+
+  void _showDateConflictDialog(DateTime date) {
+    final dateStr = '${date.month}/${date.day}/${date.year}';
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const SizedBox(width: 12),
+            const Text(
+              'Date Conflict',
+              style: TextStyle(color: Colors.white, fontSize: 20),
+            ),
+          ],
+        ),
+        content: Text(
+          'You already have a confirmed meetup on $dateStr with another person.\n\nYou can only have one meetup per day.',
+          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'OK',
+              style: TextStyle(color: Colors.blue, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveDateSelection() async {

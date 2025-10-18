@@ -7,6 +7,7 @@ import 'package:senorita/screens/chat_screen.dart';
 import 'package:senorita/screens/chat_list_screen.dart';
 import 'package:senorita/screens/timer_screen.dart';
 import 'package:senorita/screens/notification_screen.dart';
+import 'package:senorita/screens/meetups_screen.dart';
 import 'package:senorita/screens/choose_cafe_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -205,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
         content = const ChatListScreen();
         break;
       case 2:
-        content = const NotificationScreen();
+        content = const MeetupsScreen();
         break;
       case 3:
         content = const TimerScreen();
@@ -654,7 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               _buildNavItem(
-                iconData: Icons.notifications_outlined,
+                iconData: Icons.coffee_outlined,
                 isActive: _currentNavIndex == 2,
                 onTap: () {
                   HapticFeedback.lightImpact();

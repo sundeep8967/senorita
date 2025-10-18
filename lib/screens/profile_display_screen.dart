@@ -785,6 +785,186 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
     );
   }
 
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.coffee, color: Colors.brown.shade300, size: 28),
+            const SizedBox(width: 12),
+            const Text('About Senorita', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Senorita - Where Connections Bloom',
+                style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Version 1.0.0',
+                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Senorita is a modern dating app designed to help you make meaningful connections and plan real-world meetups at your favorite cafes.',
+                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.blue)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Privacy Policy', style: TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Text(
+            'At Senorita, we respect your privacy and are committed to protecting your personal information.\n\n'
+            '• We collect only essential information needed to provide our service\n'
+            '• Your data is encrypted and stored securely\n'
+            '• We never share your personal information with third parties\n'
+            '• You have full control over your profile and data\n'
+            '• You can delete your account at any time\n\n'
+            'For detailed information, please contact us.',
+            style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14, height: 1.6),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.blue)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTermsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Terms of Service', style: TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Text(
+            'By using Senorita, you agree to:\n\n'
+            '• Be respectful to all users\n'
+            '• Provide accurate information in your profile\n'
+            '• Not engage in harassment or inappropriate behavior\n'
+            '• Show up for confirmed meetups or cancel with notice\n'
+            '• Use the app responsibly and legally\n\n'
+            'We reserve the right to suspend accounts that violate these terms.',
+            style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14, height: 1.6),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.blue)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showContactDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.email, color: Colors.blue, size: 24),
+            const SizedBox(width: 12),
+            const Text('Contact Us', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Have questions or feedback? We\'d love to hear from you!',
+              style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14, height: 1.5),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.email_outlined, color: Colors.blue, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(const ClipboardData(text: 'thecaiosenorita@gmail.com'));
+                        Navigator.pop(context);
+                        _showSnackBar('Email copied to clipboard!');
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Email',
+                            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'thecaiosenorita@gmail.com',
+                            style: TextStyle(color: Colors.blue, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.copy, color: Colors.white.withOpacity(0.5), size: 18),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Tap to copy email address',
+              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.blue)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAccountSettingsSection() {
     return Container(
       decoration: BoxDecoration(
@@ -822,24 +1002,24 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             child: Column(
               children: [
                 _buildSettingsItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifications',
-                  onTap: () => _showSnackBar('Notification settings would open here'),
+                  icon: Icons.info_outline,
+                  title: 'About Senorita',
+                  onTap: _showAboutDialog,
                 ),
                 _buildSettingsItem(
-                  icon: Icons.lock_outline,
-                  title: 'Privacy',
-                  onTap: () => _showSnackBar('Privacy settings would open here'),
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Privacy Policy',
+                  onTap: _showPrivacyDialog,
                 ),
                 _buildSettingsItem(
-                  icon: Icons.security_outlined,
-                  title: 'Security',
-                  onTap: () => _showSnackBar('Security settings would open here'),
+                  icon: Icons.description_outlined,
+                  title: 'Terms of Service',
+                  onTap: _showTermsDialog,
                 ),
                 _buildSettingsItem(
-                  icon: Icons.help_outline,
-                  title: 'Help & Support',
-                  onTap: () => _showSnackBar('Help & support would open here'),
+                  icon: Icons.email_outlined,
+                  title: 'Contact Us',
+                  onTap: _showContactDialog,
                 ),
               ],
             ),
