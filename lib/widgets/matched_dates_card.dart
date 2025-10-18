@@ -89,9 +89,7 @@ class _MatchedDatesCardState extends State<MatchedDatesCard> {
 
               // Info text
               Text(
-                widget.currentUserGender == 'female'
-                    ? '👑 As a lady, you get to pick the time first!'
-                    : '⏰ Waiting for her to pick the time...',
+                _getInfoText(matchedDates),
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 13,
@@ -106,7 +104,7 @@ class _MatchedDatesCardState extends State<MatchedDatesCard> {
   }
 
   Widget _buildMatchedDateItem(MatchedDate matchedDate) {
-    final isGirl = widget.currentUserGender == 'female';
+    final isGirl = widget.currentUserGender.toLowerCase() == 'female';
     final hasGirlTime = matchedDate.girlTime != null;
     final hasBoyTime = matchedDate.boyTime != null;
     final isConfirmed = matchedDate.isConfirmed;
@@ -378,5 +376,31 @@ class _MatchedDatesCardState extends State<MatchedDatesCard> {
     final minute = time.minute.toString().padLeft(2, '0');
     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
     return '$hour:$minute $period';
+  }
+
+  String _getInfoText(List<MatchedDate> matchedDates) {
+    final isGirl = widget.currentUserGender.toLowerCase() == 'female';
+    
+    // Check if there's any date where girl hasn't picked time yet
+    final hasUnpickedGirlTime = matchedDates.any((md) => md.girlTime == null);
+    final hasUnpickedBoyTime = matchedDates.any((md) => md.boyTime == null && md.girlTime != null);
+    
+    if (isGirl) {
+      if (hasUnpickedGirlTime) {
+        return '👑 As a lady, you get to pick the time first!';
+      } else if (hasUnpickedBoyTime) {
+        return '⏰ Waiting for him to pick his time...';
+      } else {
+        return '✅ All times confirmed! See you soon!';
+      }
+    } else {
+      if (hasUnpickedGirlTime) {
+        return '⏰ Waiting for her to pick the time first...';
+      } else if (hasUnpickedBoyTime) {
+        return '👍 Your turn! Pick your preferred time.';
+      } else {
+        return '✅ All times confirmed! See you soon!';
+      }
+    }
   }
 }

@@ -292,10 +292,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           'Profile',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
@@ -430,6 +427,28 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen>
             fontSize: 16,
           ),
         ),
+        const SizedBox(height: 6),
+        // Gender display
+        if (_userProfile != null && _userProfile!['gender'] != null)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _userProfile!['gender'].toString().toLowerCase() == 'female' ? Icons.female : Icons.male,
+                color: _userProfile!['gender'].toString().toLowerCase() == 'female' ? Colors.pink : Colors.blue,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _userProfile!['gender'].toString().toLowerCase() == 'female' ? 'Female' : 'Male',
+                style: TextStyle(
+                  color: (_userProfile!['gender'].toString().toLowerCase() == 'female' ? Colors.pink : Colors.blue).withOpacity(0.9),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

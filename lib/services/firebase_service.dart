@@ -290,25 +290,28 @@ class FirebaseService {
   Future<List<QueryDocumentSnapshot>> getPotentialMatches({required String currentUserGender}) async {
     if (currentUserId == null) return [];
 
-    // Define targetGender at the beginning so it's available in all scopes
-    // Handle case sensitivity - convert to proper case to match Firebase data
-    String targetGender = currentUserGender.toLowerCase() == 'male' ? 'Female' : 'Male';
+    // Define targetGender - opposite gender for matching
+    String targetGenderLower = currentUserGender.toLowerCase() == 'male' ? 'female' : 'male';
+    String targetGenderCapitalized = targetGenderLower == 'female' ? 'Female' : 'Male';
 
     try {
-      print('🔍 Fetching potential matches for gender: $targetGender');
+      print('🔍 Fetching potential matches for gender: $targetGenderLower or $targetGenderCapitalized');
       
-      // First, get all active users with completed onboarding and target gender
+      // Get all active users with completed onboarding (without gender filter)
+      // We'll filter by gender client-side to handle both cases
       final querySnapshot = await _firestore
           .collection('users')
-          .where('gender', isEqualTo: targetGender)
           .where('isActive', isEqualTo: true)
           .where('onboardingCompleted', isEqualTo: true)
-          .limit(50)  // Get more documents to filter client-side
+          .limit(100)  // Get more documents to filter client-side
           .get();
       
-      // Filter out current user client-side to avoid Firestore permission issues
+      // Filter by gender (case-insensitive) and exclude current user
       final filteredDocs = querySnapshot.docs
-          .where((doc) => doc.id != currentUserId)
+          .where((doc) {
+            final gender = doc.data()['gender']?.toString().toLowerCase();
+            return doc.id != currentUserId && gender == targetGenderLower;
+          })
           .take(20)
           .toList();
       
@@ -326,12 +329,12 @@ class FirebaseService {
             .limit(50)
             .get();
         
-        // Filter by gender and exclude current user client-side
+        // Filter by gender (case-insensitive) and exclude current user client-side
         final fallbackFiltered = fallbackSnapshot.docs
             .where((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              final userGender = data['gender']?.toString();
-              return userGender == targetGender && doc.id != currentUserId;
+              final userGender = data['gender']?.toString().toLowerCase();
+              return userGender == targetGenderLower && doc.id != currentUserId;
             })
             .take(20)
             .toList();
@@ -364,13 +367,15 @@ class FirebaseService {
   Future<void> updateGenderStep(String gender) async {
     if (currentUserId == null) return;
     try {
+      // Normalize gender to lowercase for consistency
+      final normalizedGender = gender.toLowerCase();
       await _firestore.collection('users').doc(currentUserId).update({
-        'gender': gender,
+        'gender': normalizedGender,
         'genderCompleted': true,
         'profileCompletionPercentage': _calculateCompletionPercentage(['name', 'gender']),
         'lastUpdated': FieldValue.serverTimestamp(),
       });
-      print('✅ Gender updated: $gender');
+      print('✅ Gender updated: $normalizedGender');
     } catch (e) {
       print('❌ Error updating gender: $e');
       rethrow;

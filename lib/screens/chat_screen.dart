@@ -10,6 +10,7 @@ import 'package:senorita/widgets/meetup_calendar_widget.dart';
 import 'package:senorita/widgets/matched_dates_card.dart';
 import 'package:senorita/widgets/verification_code_widget.dart';
 import 'package:senorita/widgets/rating_dialog.dart';
+import 'package:senorita/widgets/date_selection_prompt.dart';
 import 'package:senorita/services/date_selection_service.dart';
 
 class ChatScreen extends StatelessWidget {
@@ -196,7 +197,15 @@ class _ChatViewState extends State<ChatView> {
               currentUserGender: _currentUserGender!,
             ),
           
-          // Matched dates card
+          // Date selection prompt (replaces calendar icon)
+          if (_chatRoomId != null && _currentUserGender != null)
+            DateSelectionPrompt(
+              chatRoomId: _chatRoomId!,
+              otherUserId: widget.otherUserId,
+              currentUserGender: _currentUserGender!,
+            ),
+          
+          // Matched dates card (shown after both select dates)
           if (_chatRoomId != null && _currentUserGender != null)
             MatchedDatesCard(
               chatRoomId: _chatRoomId!,
@@ -271,30 +280,6 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
         ],
-      ),
-      actions: [
-        // Calendar icon to select dates
-        if (_chatRoomId != null && _currentUserGender != null)
-          IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.white),
-            tooltip: 'Select Dates',
-            onPressed: () => _showCalendar(context),
-          ),
-      ],
-    );
-  }
-
-  void _showCalendar(BuildContext context) {
-    if (_chatRoomId == null || _currentUserGender == null) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => MeetupCalendarWidget(
-        chatRoomId: _chatRoomId!,
-        otherUserId: widget.otherUserId,
-        currentUserGender: _currentUserGender!,
       ),
     );
   }

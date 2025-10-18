@@ -28,6 +28,7 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
   List<DateTime> _selectedDates = [];
   List<DateTime> _otherUserDates = [];
   bool _isLoading = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -81,6 +82,10 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
   }
 
   Future<void> _saveDateSelection() async {
+    setState(() {
+      _isSaving = true;
+    });
+
     try {
       final currentUserId = _firebaseService.currentUserId!;
 
@@ -91,23 +96,30 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
         gender: widget.currentUserGender,
       );
 
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dates saved successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dates saved successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       print('❌ Error saving dates: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error saving dates'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error saving dates'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -129,10 +141,10 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
       return Colors.purple;
     } else if (isMyDate) {
       // Current user selected
-      return widget.currentUserGender == 'female' ? Colors.pink : Colors.blue;
+      return widget.currentUserGender.toLowerCase() == 'female' ? Colors.pink : Colors.blue;
     } else if (isOtherDate) {
       // Other user selected - show with transparency
-      final otherGender = widget.currentUserGender == 'female' ? 'male' : 'female';
+      final otherGender = widget.currentUserGender.toLowerCase() == 'female' ? 'male' : 'female';
       return (otherGender == 'female' ? Colors.pink : Colors.blue).withOpacity(0.3);
     }
 
@@ -203,12 +215,12 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
             child: Row(
               children: [
                 _buildLegendItem(
-                  widget.currentUserGender == 'female' ? Colors.pink : Colors.blue,
+                  widget.currentUserGender.toLowerCase() == 'female' ? Colors.pink : Colors.blue,
                   'Your dates',
                 ),
                 const SizedBox(width: 16),
                 _buildLegendItem(
-                  (widget.currentUserGender == 'female' ? Colors.blue : Colors.pink)
+                  (widget.currentUserGender.toLowerCase() == 'female' ? Colors.blue : Colors.pink)
                       .withOpacity(0.3),
                   'Their dates',
                 ),
@@ -276,7 +288,7 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _selectedDates.isEmpty ? null : _saveDateSelection,
+                onPressed: _selectedDates.isEmpty || _isSaving ? null : _saveDateSelection,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -286,15 +298,24 @@ class _MeetupCalendarWidgetState extends State<MeetupCalendarWidget> {
                   ),
                   disabledBackgroundColor: Colors.grey[700],
                 ),
-                child: Text(
-                  _selectedDates.isEmpty
-                      ? 'Select dates to continue'
-                      : 'Save ${_selectedDates.length} date${_selectedDates.length > 1 ? 's' : ''}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(
+                        _selectedDates.isEmpty
+                            ? 'Select dates to continue'
+                            : 'Save ${_selectedDates.length} date${_selectedDates.length > 1 ? 's' : ''}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ),

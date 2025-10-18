@@ -24,7 +24,7 @@ class VerificationCodeWidget extends StatelessWidget {
         }
 
         final schedule = snapshot.data!;
-        final userCode = currentUserGender == 'female'
+        final userCode = currentUserGender.toLowerCase() == 'female'
             ? schedule.girlVerificationCode
             : schedule.boyVerificationCode;
 
@@ -38,153 +38,107 @@ class VerificationCodeWidget extends StatelessWidget {
             !schedule.isAbandoned;
 
         return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                currentUserGender == 'female'
-                    ? Colors.pink.withOpacity(0.2)
-                    : Colors.blue.withOpacity(0.2),
-                currentUserGender == 'female'
-                    ? Colors.pink.withOpacity(0.1)
-                    : Colors.blue.withOpacity(0.1),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
+            color: (currentUserGender.toLowerCase() == 'female' 
+                ? Colors.pink 
+                : Colors.blue).withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: currentUserGender == 'female'
-                  ? Colors.pink.withOpacity(0.5)
-                  : Colors.blue.withOpacity(0.5),
-              width: 2,
+              color: currentUserGender.toLowerCase() == 'female'
+                  ? Colors.pink.withOpacity(0.4)
+                  : Colors.blue.withOpacity(0.4),
+              width: 1.5,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.qr_code_2,
-                    color: currentUserGender == 'female' ? Colors.pink : Colors.blue,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Your Cafe Verification Code',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+              Icon(
+                Icons.qr_code_2,
+                color: currentUserGender.toLowerCase() == 'female' ? Colors.pink : Colors.blue,
+                size: 20,
               ),
-              const SizedBox(height: 16),
-
-              // Code display
-              Center(
-                child: GestureDetector(
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: userCode));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Code copied to clipboard!'),
-                        duration: Duration(seconds: 2),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 2,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          userCode,
-                          style: TextStyle(
-                            color: currentUserGender == 'female'
-                                ? Colors.pink
-                                : Colors.blue,
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 8,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.copy,
-                          color: Colors.white.withOpacity(0.7),
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Instructions
-              Text(
-                '📱 Show this code at the cafe to confirm your arrival',
+              const SizedBox(width: 10),
+              const Text(
+                'Cafe Code:',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white70,
                   fontSize: 13,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
                 ),
-                textAlign: TextAlign.center,
               ),
-
-              // Deadline warning
-              if (showDeadlineWarning) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.orange,
-                      width: 1,
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: userCode));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Code copied!'),
+                      duration: Duration(seconds: 1),
+                      backgroundColor: Colors.green,
                     ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        userCode,
+                        style: TextStyle(
+                          color: currentUserGender.toLowerCase() == 'female'
+                              ? Colors.pink
+                              : Colors.blue,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 3,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.copy,
+                        color: Colors.white.withOpacity(0.6),
+                        size: 14,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              if (showDeadlineWarning)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
-                        Icons.warning_amber_rounded,
+                        Icons.access_time,
                         color: Colors.orange,
-                        size: 20,
+                        size: 14,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _getDeadlineWarningText(schedule.selectionDeadline!),
-                          style: const TextStyle(
-                            color: Colors.orange,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getDeadlineWarningText(schedule.selectionDeadline!),
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
             ],
           ),
         );
@@ -198,9 +152,9 @@ class VerificationCodeWidget extends StatelessWidget {
     final difference = deadlineDate.difference(now);
 
     if (difference.inHours < 24) {
-      return '⏰ ${difference.inHours}h left to select dates or meetup will be cancelled!';
+      return '${difference.inHours}h left';
     } else {
-      return '⏰ ${difference.inDays} day${difference.inDays > 1 ? 's' : ''} left to select dates';
+      return '${difference.inDays}d left';
     }
   }
 }
