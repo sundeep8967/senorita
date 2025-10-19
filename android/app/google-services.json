@@ -15,6 +15,38 @@
       },
       "oauth_client": [
         {
+          "client_id": "1011179499871-1mt6fppcbgd0uvkpm8niap7c0lrc470p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sundeep.senorita",
+            "certificate_hash": "b1f0ffa183d03d8f51b7120d349c2a973ddbafe4"
+          }
+        },
+        {
+          "client_id": "1011179499871-c8bcrsvatq63ucqpccommae15pacnsto.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sundeep.senorita",
+            "certificate_hash": "270c51d148c511dd07fca21c0990a6512c9753b6"
+          }
+        },
+        {
+          "client_id": "1011179499871-h9kn2s468s45nmpun4buhbfg14fmmbbb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sundeep.senorita",
+            "certificate_hash": "ec65c663a9930d4f91ca6dd67620e490e7181b71"
+          }
+        },
+        {
+          "client_id": "1011179499871-u7ravbeb5d3d7mqu71hpnnm2ni6p2hke.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sundeep.senorita",
+            "certificate_hash": "9b909399776b71e517d0e8d6e82d7857e4f9df91"
+          }
+        },
+        {
           "client_id": "1011179499871-hvv9sovailiegpc7h3qjcc9ovoem6c3d.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -30,6 +62,13 @@
             {
               "client_id": "1011179499871-hvv9sovailiegpc7h3qjcc9ovoem6c3d.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1011179499871-qncqvs8i7jdc35fi70en629tf6pangtr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "om.sundeep.senorita"
+              }
             }
           ]
         }
