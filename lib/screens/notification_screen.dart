@@ -15,6 +15,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
   final AppNotificationService _notificationService = AppNotificationService();
 
   @override
+  void initState() {
+    super.initState();
+    // Mark all notifications as read when screen opens
+    Future.delayed(Duration.zero, () {
+      _notificationService.markAllAsRead();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,

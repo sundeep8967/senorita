@@ -414,9 +414,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           Positioned(
-            bottom: 100, left: 24, right: 24,
+            bottom: 120 + MediaQuery.of(context).padding.bottom,
+            left: 24,
+            right: 24,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if ((currentMatch.profession ?? '').isNotEmpty)
                   Container(
@@ -449,7 +452,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 Row(
                   children: [
-                    Text('${currentMatch.fullName ?? 'User'}, ${currentMatch.age ?? 'N/A'}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                    Flexible(
+                      child: Text(
+                        '${currentMatch.fullName ?? 'User'}, ${currentMatch.age ?? 'N/A'}',
+                        style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Container(
                       width: 24, height: 24,
@@ -460,7 +469,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 if ((currentMatch.bio ?? '').isNotEmpty)
-                  Text(currentMatch.bio!, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16, height: 1.5)),
+                  Text(
+                    currentMatch.bio!,
+                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16, height: 1.5),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
