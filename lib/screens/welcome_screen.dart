@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firebase_service.dart';
 import 'application_flow_screen.dart';
 import 'home_screen.dart';
+import 'invite_code_screen.dart';
 
 class RayaWelcomeScreen extends StatefulWidget {
   const RayaWelcomeScreen({Key? key}) : super(key: key);
@@ -109,60 +113,185 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
     });
   }
   
-  void _signInWithGoogle() async {
-    // Show loading dialog with modern design
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(
-                color: Color(0xFF6A5ACD),
-                strokeWidth: 3,
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Signing in with Google...',
-                style: TextStyle(
-                  color: Color(0xFF1C1C1E),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
+  bool _isSigningIn = false;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseService _firebaseService = FirebaseService();
+
+  // Initialize Firebase profile after authentication
+  Future<void> _initializeFirebaseProfile() async {
+    try {
+      print('🔥 Initializing Firebase profile after authentication...');
+      await _firebaseService.initializeUserProfile();
+      print('✅ Firebase profile initialized successfully');
+    } catch (e) {
+      print('❌ Error initializing Firebase profile: $e');
+      // Show error but don't block the flow
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Warning: Profile initialization failed: $e'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
-      ),
-    );
-    
-    // Simulate Google sign-in process
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // Close loading dialog
-    Navigator.pop(context);
-    
-    // Navigate directly to home screen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
+      );
+    }
+  }
+
+  void _signInWithGoogle() async {
+    setState(() {
+      _isSigningIn = true;
+    });
+
+    try {
+      print('🔐 Starting Google Sign-in process...');
+      
+      // Step 1: Google Sign-in
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        print('❌ Google Sign-in cancelled by user');
+        setState(() {
+          _isSigningIn = false;
+        });
+        return;
+      }
+      
+      print('✅ Google Sign-in successful: ${googleUser.email}');
+      print('👤 Google User ID: ${googleUser.id}');
+      print('👤 Google Display Name: ${googleUser.displayName}');
+      
+      // Step 2: Get Google Auth details
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      print('🔑 Google Auth Token received');
+      
+      // Step 3: Create Firebase credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      print('🎫 Firebase credential created');
+      
+      // Step 4: Sign in to Firebase
+      print('🔥 Signing in to Firebase...');
+      UserCredential? userCredential;
+      User? firebaseUser;
+      
+      try {
+        userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+        firebaseUser = userCredential.user;
+        print('✅ Firebase sign-in completed');
+      } catch (firebaseError) {
+        print('❌ Firebase sign-in error: $firebaseError');
+        
+        // Try to get current user if sign-in failed but user might already be signed in
+        firebaseUser = FirebaseAuth.instance.currentUser;
+        if (firebaseUser != null) {
+          print('✅ Found existing Firebase user: ${firebaseUser.uid}');
+        } else {
+          throw firebaseError;
+        }
+      }
+      
+      if (firebaseUser != null) {
+        print('🔥 Firebase authentication successful!');
+        print('🆔 Firebase User ID: ${firebaseUser.uid}');
+        print('📧 Firebase Email: ${firebaseUser.email}');
+        print('👤 Firebase Display Name: ${firebaseUser.displayName}');
+        print('📸 Firebase Photo URL: ${firebaseUser.photoURL}');
+        print('✅ Is Email Verified: ${firebaseUser.emailVerified}');
+        print('📅 Creation Time: ${firebaseUser.metadata.creationTime}');
+        print('📅 Last Sign In: ${firebaseUser.metadata.lastSignInTime}');
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Welcome ${firebaseUser.displayName ?? firebaseUser.email}!'))
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        
+        // Check if onboarding is already complete
+        final userData = await _firebaseService.getUserProfile();
+        final onboardingCompleted = userData?['onboardingCompleted'] ?? false;
+
+        if (onboardingCompleted) {
+          print('✅ Onboarding already complete, going to home screen...');
+          Navigator.pushReplacement(
+            context, 
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // Initialize Firebase profile and proceed with invite code screen
+          await _initializeFirebaseProfile();
+          print('▶️ Going to invite code screen...');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const InviteCodeScreen()),
+          );
+        }
+      } else {
+        print('❌ Firebase authentication failed - no user returned');
+        throw Exception('Firebase authentication failed');
+      }
+      
+    } catch (error) {
+      print('❌ Google Sign-in error: $error');
+      
+      // Check if user is actually authenticated despite the error
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        print('✅ User is actually authenticated despite error: ${currentUser.uid}');
+        
+        // Initialize Firebase profile
+        await _initializeFirebaseProfile();
+        
+        // Show success and proceed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Welcome ${currentUser.displayName ?? currentUser.email}!'))
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        
+        // Start onboarding flow
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SenoritaApplicationScreen()),
+        );
+        return;
+      }
+      
+      // Handle actual sign-in error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Sign-in failed: $error'))
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    setState(() {
+      _isSigningIn = false;
+    });
   }
   
   void _showAboutDialog() {
@@ -588,132 +717,54 @@ class _RayaWelcomeScreenState extends State<RayaWelcomeScreen>
         
         const SizedBox(height: 20),
         
-        // I Have a Code button with glassmorphism
+        // Continue with Google button
         Container(
           width: double.infinity,
           height: 60,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: Colors.white.withOpacity(0.5)),
+            border: Border.all(color: const Color(0xFFE5E5EA)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(0.1),
                 blurRadius: 15,
                 spreadRadius: 2,
               ),
             ],
           ),
-          child: OutlinedButton(
-            onPressed: () {
-              // Handle code action
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF495057),
-              backgroundColor: Colors.transparent,
+          child: ElevatedButton.icon(
+            onPressed: _signInWithGoogle,
+            icon: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: NetworkImage('https://developers.google.com/identity/images/g-logo.png'),
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            label: const Text(
+              'Continue with Google',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF1C1C1E),
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
-              side: const BorderSide(color: Colors.transparent),
-            ),
-            child: const Text(
-              'I Have a Code',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
-              ),
             ),
           ),
         ),
         
-        const SizedBox(height: 20),
-        
-        // Learn more link with modern styling
-        GestureDetector(
-          onTap: () {
-            _showAboutDialog();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'Learn More About Senorita',
-              style: TextStyle(
-                color: Color(0xFF495057),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 30),
-        
-        // Sign In section for existing members
-        Column(
-          children: [
-            const Text(
-              'Already a member?',
-              style: TextStyle(
-                color: Color(0xFF6C757D),
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  _signInWithGoogle();
-                },
-                icon: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage('https://developers.google.com/identity/images/g-logo.png'),
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                label: const Text(
-                  'Continue with Google',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF495057),
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF1C1C1E),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        const SizedBox(height: 40),
       ],
     );
   }

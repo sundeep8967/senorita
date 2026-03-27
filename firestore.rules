@@ -1,0 +1,144 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read/write their own data, and read other users for matching
+    match /users/{userId} {
+      // Users can read their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Authenticated users can read other users' profiles for matching purposes
+      // Allow reading for userCode queries (needed for profile lookups)
+      allow read: if request.auth != null;
+    }
+    
+    // Profiles are readable by authenticated users
+    match /profiles/{profileId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == profileId;
+    }
+    
+    // Matches are readable by participants
+    match /matches/{matchId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.participants;
+    }
+    
+    // Chats are accessible by participants
+    match /chats/{chatId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.participants;
+    }
+    
+    // SIMPLIFIED CHAT SYSTEM - Working rules
+    
+    // Main chat rooms - simple and permissive
+    match /chat_rooms/{roomId} {
+      // Allow any authenticated user to create, read, update chat rooms
+      // Room ID format: userId1_userId2 (sorted alphabetically)
+      allow read, write: if request.auth != null;
+    }
+    
+    // Messages within chat rooms - simple and permissive
+    match /chat_rooms/{roomId}/messages/{messageId} {
+      // Allow any authenticated user to read/write messages
+      allow read, write: if request.auth != null;
+    }
+    
+    // Messages within chats
+    match /chats/{chatId}/messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Meetups - users can read meetups they're involved in and create new ones
+    match /meetups/{meetupId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.requestingUserId || 
+         request.auth.uid == resource.data.invitedUserId);
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.requestingUserId;
+      allow update: if request.auth != null && 
+        (request.auth.uid == resource.data.requestingUserId || 
+         request.auth.uid == resource.data.invitedUserId);
+    }
+    
+    // In-app notifications - users can read their own notifications
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow write: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Payments - users can read/write their own payment records
+    match /payments/{paymentId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // User preferences
+    match /user_preferences/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Test collection for debugging (remove in production)
+    match /test/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Test rules collection for debugging (remove in production)
+    match /test_rules/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Debug test collection for debugging (remove in production)
+    match /debug_test/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Date selections for calendar feature
+    match /date_selections/{selectionId} {
+      // Users can read/write their own date selections
+      // Format: chatRoomId_userId
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Meetup schedules for matched dates
+    match /meetup_schedules/{chatRoomId} {
+      // Both participants in a chat can read/write the schedule
+      allow read, write: if request.auth != null;
+    }
+    
+    // Meetup ratings
+    match /meetup_ratings/{ratingId} {
+      // Users can read their own ratings (given and received)
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.raterId || 
+         request.auth.uid == resource.data.ratedUserId);
+      // Users can create ratings for others
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.raterId;
+    }
+    
+    // User reliability scores
+    match /user_reliability/{userId} {
+      // Users can read any reliability score
+      allow read: if request.auth != null;
+      // Only system can write (through Cloud Functions ideally)
+      allow write: if request.auth != null;
+    }
+    
+    // Reschedule requests
+    match /reschedule_requests/{rescheduleId} {
+      // Participants can read/write reschedule requests
+      allow read, write: if request.auth != null;
+    }
+  }
+}

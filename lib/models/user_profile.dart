@@ -17,6 +17,7 @@ class UserProfile {
   final DateTime? onboardingCompletedAt;
   final bool isActive;
   final String? profileStatus;
+  final String? userCode; // 6-character unique identifier
 
   // Onboarding step completion flags
   final bool nameCompleted;
@@ -53,6 +54,7 @@ class UserProfile {
     this.onboardingCompletedAt,
     this.isActive = false,
     this.profileStatus,
+    this.userCode,
     this.nameCompleted = false,
     this.genderCompleted = false,
     this.ageCompleted = false,
@@ -76,8 +78,12 @@ class UserProfile {
       throw Exception('Document data is null');
     }
 
+    return UserProfile.fromMap(doc.id, data);
+  }
+
+  factory UserProfile.fromMap(String userId, Map<String, dynamic> data) {
     return UserProfile(
-      userId: doc.id,
+      userId: userId,
       fullName: data['fullName'],
       gender: data['gender'],
       age: data['age'],
@@ -88,11 +94,13 @@ class UserProfile {
       coordinates: data['coordinates'],
       onboardingCompleted: data['onboardingCompleted'] ?? false,
       profileCompletionPercentage: data['profileCompletionPercentage'] ?? 0,
-      createdAt: data['createdAt']?.toDate(),
-      lastUpdated: data['lastUpdated']?.toDate(),
-      onboardingCompletedAt: data['onboardingCompletedAt']?.toDate(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate(),
+      onboardingCompletedAt:
+          (data['onboardingCompletedAt'] as Timestamp?)?.toDate(),
       isActive: data['isActive'] ?? false,
       profileStatus: data['profileStatus'],
+      userCode: data['userCode'],
       nameCompleted: data['nameCompleted'] ?? false,
       genderCompleted: data['genderCompleted'] ?? false,
       ageCompleted: data['ageCompleted'] ?? false,
@@ -128,6 +136,7 @@ class UserProfile {
       'onboardingCompletedAt': onboardingCompletedAt != null ? Timestamp.fromDate(onboardingCompletedAt!) : null,
       'isActive': isActive,
       'profileStatus': profileStatus,
+      'userCode': userCode,
       'nameCompleted': nameCompleted,
       'genderCompleted': genderCompleted,
       'ageCompleted': ageCompleted,
@@ -160,6 +169,7 @@ class UserProfile {
     DateTime? onboardingCompletedAt,
     bool? isActive,
     String? profileStatus,
+    String? userCode,
     bool? nameCompleted,
     bool? genderCompleted,
     bool? ageCompleted,
@@ -192,6 +202,7 @@ class UserProfile {
       onboardingCompletedAt: onboardingCompletedAt ?? this.onboardingCompletedAt,
       isActive: isActive ?? this.isActive,
       profileStatus: profileStatus ?? this.profileStatus,
+      userCode: userCode ?? this.userCode,
       nameCompleted: nameCompleted ?? this.nameCompleted,
       genderCompleted: genderCompleted ?? this.genderCompleted,
       ageCompleted: ageCompleted ?? this.ageCompleted,

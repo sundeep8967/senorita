@@ -1,36 +1,187 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:senorita/features/chat/app/bloc/chat_bloc.dart';
+import 'package:senorita/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:senorita/models/chat_message.dart';
+import 'package:senorita/services/firebase_service.dart';
+import 'package:senorita/widgets/meetup_calendar_widget.dart';
+import 'package:senorita/widgets/matched_dates_card.dart';
+import 'package:senorita/widgets/verification_code_widget.dart';
+import 'package:senorita/widgets/rating_dialog.dart';
+import 'package:senorita/widgets/date_selection_prompt.dart';
+import 'package:senorita/services/date_selection_service.dart';
 
-class ChatScreen extends StatefulWidget {
-  const ChatScreen({Key? key}) : super(key: key);
+class ChatScreen extends StatelessWidget {
+  final String otherUserId;
+  final String otherUserName;
+  final String otherUserAvatar;
+
+  const ChatScreen({
+    Key? key,
+    required this.otherUserId,
+    required this.otherUserName,
+    required this.otherUserAvatar,
+  }) : super(key: key);
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => ChatBloc(
+        chatRepository: ChatRepositoryImpl(FirebaseService()),
+        firebaseAuth: FirebaseAuth.instance,
+      )..add(ChatStarted(otherUserId: otherUserId)),
+      child: ChatView(
+        otherUserId: otherUserId,
+        otherUserName: otherUserName,
+        otherUserAvatar: otherUserAvatar,
+      ),
+    );
+  }
 }
 
-class _ChatScreenState extends State<ChatScreen> {
-  final List<Map<String, dynamic>> _conversations = [
-    {
-      'name': 'Sophia Williams',
-      'message': 'Hey, how are you?',
-      'time': '10:30 AM',
-      'avatar': 'assets/girl1a.jpg',
-      'unread': 2,
-    },
-    {
-      'name': 'Isabella',
-      'message': 'Lets catch up tomorrow.',
-      'time': 'Yesterday',
-      'avatar': 'assets/girl1b.jpg',
-      'unread': 0,
-    },
-    {
-      'name': 'Kate',
-      'message': 'Thanks for the coffee!',
-      'time': '2 days ago',
-      'avatar': 'assets/kate.jpg',
-      'unread': 0,
-    },
-  ];
+class ChatView extends StatefulWidget {
+  final String otherUserId;
+  final String otherUserName;
+  final String otherUserAvatar;
+
+  const ChatView({
+    Key? key,
+    required this.otherUserId,
+    required this.otherUserName,
+    required this.otherUserAvatar,
+  }) : super(key: key);
+
+  @override
+  State<ChatView> createState() => _ChatViewState();
+}
+
+class _ChatViewState extends State<ChatView> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final FirebaseService _firebaseService = FirebaseService();
+  
+  String? _chatRoomId;
+  String? _currentUserGender;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeChatData();
+  }
+
+  Future<void> _initializeChatData() async {
+    try {
+      final currentUserId = _firebaseService.currentUserId;
+      if (currentUserId == null) return;
+
+      // Get current user's gender from profile
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .get();
+      
+      if (userDoc.exists) {
+        setState(() {
+          _currentUserGender = userDoc.data()?['gender'] ?? 'male';
+        });
+      }
+
+      // Get or create chat room ID
+      final chatRoomQuery = await FirebaseFirestore.instance
+          .collection('chat_rooms')
+          .where('participantIds', arrayContains: currentUserId)
+          .get();
+
+      for (var doc in chatRoomQuery.docs) {
+        final participants = List<String>.from(doc.data()['participantIds'] ?? []);
+        if (participants.contains(widget.otherUserId)) {
+          setState(() {
+            _chatRoomId = doc.id;
+          });
+          
+          // Check for pending ratings and deadline
+          await _checkPendingRatingAndDeadline(doc.id, currentUserId);
+          break;
+        }
+      }
+    } catch (e) {
+      print('❌ Error initializing chat data: $e');
+    }
+  }
+
+  Future<void> _checkPendingRatingAndDeadline(String chatRoomId, String currentUserId) async {
+    try {
+      final service = DateSelectionService();
+      
+      // Check deadline first
+      await service.checkAndHandleDeadline(chatRoomId);
+      
+      // Get meetup schedule
+      final schedule = await service.getMeetupSchedule(chatRoomId);
+      if (schedule == null || schedule.matchedDates.isEmpty) return;
+
+      // Check each confirmed date to see if rating is pending
+      final now = DateTime.now();
+      for (final matchedDate in schedule.matchedDates) {
+        if (!matchedDate.isConfirmed) continue;
+
+        final meetupDate = matchedDate.date;
+        final dayAfterMeetup = DateTime(
+          meetupDate.year,
+          meetupDate.month,
+          meetupDate.day + 1,
+        );
+
+        // If it's the day after meetup or later, prompt for rating
+        if (now.isAfter(dayAfterMeetup)) {
+          final isPending = await service.isRatingPending(
+            chatRoomId: chatRoomId,
+            raterId: currentUserId,
+            meetupDate: meetupDate,
+          );
+
+          if (isPending && mounted) {
+            // Wait a bit before showing dialog
+            await Future.delayed(const Duration(milliseconds: 500));
+            
+            if (mounted) {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => RatingDialog(
+                  chatRoomId: chatRoomId,
+                  raterId: currentUserId,
+                  ratedUserId: widget.otherUserId,
+                  ratedUserName: widget.otherUserName,
+                  meetupDate: meetupDate,
+                ),
+              );
+            }
+            break; // Only show one rating dialog at a time
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error checking pending rating: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final message = _messageController.text.trim();
+    if (message.isNotEmpty) {
+      context.read<ChatBloc>().add(ChatMessageSent(message: message));
+      _messageController.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,146 +190,50 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          _buildSearchBar(),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _conversations.length,
-              itemBuilder: (context, index) {
-                return _buildConversationTile(_conversations[index]);
-              },
+          // Verification code
+          if (_chatRoomId != null && _currentUserGender != null)
+            VerificationCodeWidget(
+              chatRoomId: _chatRoomId!,
+              currentUserGender: _currentUserGender!,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.black,
-      elevation: 0,
-      title: const Text(
-        'Messages',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.more_vert, color: Colors.white),
-          onPressed: () {},
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: TextField(
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Search...',
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
-          filled: true,
-          fillColor: Colors.grey[900],
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConversationTile(Map<String, dynamic> conversation) {
-    return ListTile(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatDetailScreen(conversation: conversation),
-          ),
-        );
-      },
-      leading: CircleAvatar(
-        radius: 30,
-        backgroundImage: AssetImage(conversation['avatar']),
-      ),
-      title: Text(
-        conversation['name'],
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      subtitle: Text(
-        conversation['message'],
-        style: TextStyle(color: Colors.white.withOpacity(0.7)),
-      ),
-      trailing: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            conversation['time'],
-            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
-          ),
-          if (conversation['unread'] > 0) ...[
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Color(0xFF007AFF),
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                conversation['unread'].toString(),
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
+          
+          // Date selection prompt (replaces calendar icon)
+          if (_chatRoomId != null && _currentUserGender != null)
+            DateSelectionPrompt(
+              chatRoomId: _chatRoomId!,
+              otherUserId: widget.otherUserId,
+              currentUserGender: _currentUserGender!,
             ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class ChatDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> conversation;
-
-  const ChatDetailScreen({Key? key, required this.conversation}) : super(key: key);
-
-  @override
-  State<ChatDetailScreen> createState() => _ChatDetailScreenState();
-}
-
-class _ChatDetailScreenState extends State<ChatDetailScreen> {
-  final List<Map<String, dynamic>> _messages = [
-    {'message': 'Hey, how are you?', 'isMe': false},
-    {'message': 'Im good, thanks! How about you?', 'isMe': true},
-    {'message': 'Im doing great. Just wanted to see how you were doing.', 'isMe': false},
-    {'message': 'That sweet of you to ask. I appreciate it.', 'isMe': true},
-  ];
-
-  final TextEditingController _messageController = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: _buildDetailAppBar(),
-      body: Column(
-        children: [
+          
+          // Matched dates card (shown after both select dates)
+          if (_chatRoomId != null && _currentUserGender != null)
+            MatchedDatesCard(
+              chatRoomId: _chatRoomId!,
+              currentUserGender: _currentUserGender!,
+            ),
+          
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                return _buildMessageBubble(_messages[index]);
+            child: BlocBuilder<ChatBloc, ChatState>(
+              builder: (context, state) {
+                if (state is ChatLoadInProgress || state is ChatInitial) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state is ChatLoadFailure) {
+                  return Center(child: Text('Error: ${state.error}', style: const TextStyle(color: Colors.red)));
+                }
+                if (state is ChatLoadSuccess) {
+                  return ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: state.messages.length,
+                    itemBuilder: (context, index) {
+                      final message = state.messages[index];
+                      return _buildMessageBubble(message);
+                    },
+                  );
+                }
+                return const Center(child: Text('Something went wrong.'));
               },
             ),
           ),
@@ -188,7 +243,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  PreferredSizeWidget _buildDetailAppBar() {
+  PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.black,
       elevation: 0,
@@ -200,30 +255,37 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundImage: AssetImage(widget.conversation['avatar']),
+            backgroundColor: const Color(0xFF007AFF),
+            backgroundImage: widget.otherUserAvatar.isNotEmpty 
+                ? NetworkImage(widget.otherUserAvatar) 
+                : null,
+            child: widget.otherUserAvatar.isEmpty
+                ? Text(
+                    widget.otherUserName.isNotEmpty 
+                        ? widget.otherUserName[0].toUpperCase() 
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
-          Text(
-            widget.conversation['name'],
-            style: const TextStyle(color: Colors.white, fontSize: 18),
+          Expanded(
+            child: Text(
+              widget.otherUserName,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.videocam_outlined, color: Colors.white),
-          onPressed: () {},
-        ),
-        IconButton(
-          icon: const Icon(Icons.call_outlined, color: Colors.white),
-          onPressed: () {},
-        ),
-      ],
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
-    final bool isMe = message['isMe'];
+  Widget _buildMessageBubble(ChatMessage message) {
+    final bool isMe = message.senderId == FirebaseAuth.instance.currentUser?.uid;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -234,7 +296,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
-          message['message'],
+          message.content,
           style: const TextStyle(color: Colors.white),
         ),
       ),
@@ -246,40 +308,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.black,
-        border: Border(
-          top: BorderSide(color: Colors.grey[800]!),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey[800]!)),
       ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(Icons.add, color: Colors.white.withOpacity(0.7)),
-            onPressed: () {},
-          ),
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                filled: true,
-                fillColor: Colors.grey[900],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                  filled: true,
+                  fillColor: Colors.grey[900],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                onSubmitted: (_) => _sendMessage(),
               ),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.send, color: const Color(0xFF007AFF)),
-            onPressed: () {
-              // Send message
-            },
-          ),
-        ],
+            IconButton(
+              icon: const Icon(Icons.send, color: Color(0xFF007AFF)),
+              onPressed: _sendMessage,
+            ),
+          ],
+        ),
       ),
     );
   }

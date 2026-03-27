@@ -86,9 +86,42 @@ service cloud.firestore {
         request.auth.uid in resource.data.participants;
     }
     
+    // Chat rooms are accessible by participants
+    match /chat_rooms/{roomId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Messages within chat rooms
+    match /chat_rooms/{roomId}/messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+    
     // Messages within chats
     match /chats/{chatId}/messages/{messageId} {
       allow read, write: if request.auth != null;
+    }
+    
+    // Meetups - users can read meetups they're involved in and create new ones
+    match /meetups/{meetupId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.requestingUserId || 
+         request.auth.uid == resource.data.invitedUserId);
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.requestingUserId;
+      allow update: if request.auth != null && 
+        (request.auth.uid == resource.data.requestingUserId || 
+         request.auth.uid == resource.data.invitedUserId);
+    }
+    
+    // Payments - users can read/write their own payment records
+    match /payments/{paymentId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // User preferences
+    match /user_preferences/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
@@ -153,8 +186,11 @@ The app will create these collections:
 - `profiles` - User profile information
 - `matches` - Match data between users
 - `chats` - Chat room information
+- `chat_rooms` - Chat room data
 - `messages` - Chat messages (subcollection of chats)
+- `meetups` - Meetup invitation requests
 - `payments` - Payment transaction records
+- `user_preferences` - User preference settings
 
 ## Next Steps
 

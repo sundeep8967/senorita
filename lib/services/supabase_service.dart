@@ -122,13 +122,13 @@ class SupabaseService {
         throw Exception('Upload failed: No response from server');
       }
       
-      // Get public URL
-      final publicUrl = serviceClient.storage
+      // Get signed URL (valid for 1 hour)
+      final signedUrl = await serviceClient.storage
           .from('senorita-images-bucket')
-          .getPublicUrl(filePath);
+          .createSignedUrl(filePath, 3600);
       
-      print('✅ Direct upload successful: $publicUrl');
-      return publicUrl;
+      print('✅ Direct upload successful: $signedUrl');
+      return signedUrl;
     } catch (e) {
       print('❌ Error uploading directly to Supabase: $e');
       throw Exception('Failed to upload image directly: $e');
@@ -255,10 +255,10 @@ class SupabaseService {
       
       for (final file in personalList) {
         if (file.name != '.keep') { // Skip placeholder
-          final publicUrl = serviceClient.storage
+          final signedUrl = await serviceClient.storage
               .from('senorita-images-bucket')
-              .getPublicUrl('$personalPath${file.name}');
-          result['personal']!.add(publicUrl);
+              .createSignedUrl('$personalPath${file.name}', 3600);
+          result['personal']!.add(signedUrl);
         }
       }
       
@@ -270,10 +270,10 @@ class SupabaseService {
       
       for (final file in verificationList) {
         if (file.name != '.keep') { // Skip placeholder
-          final publicUrl = serviceClient.storage
+          final signedUrl = await serviceClient.storage
               .from('senorita-images-bucket')
-              .getPublicUrl('$verificationPath${file.name}');
-          result['verification']!.add(publicUrl);
+              .createSignedUrl('$verificationPath${file.name}', 3600);
+          result['verification']!.add(signedUrl);
         }
       }
       
@@ -281,6 +281,56 @@ class SupabaseService {
     } catch (e) {
       print('❌ Error getting user images: $e');
       return {'personal': [], 'verification': []};
+    }
+  }
+
+  /// Delete all photos for a user from Supabase Storage
+  Future<void> deleteAllUserPhotos(String userId) async {
+    try {
+      print('🗑️ Deleting all photos for user: $userId');
+      
+      // Delete personal images
+      final personalPath = '$userId/personal/';
+      try {
+        final personalList = await serviceClient.storage
+            .from('senorita-images-bucket')
+            .list(path: personalPath);
+        
+        for (final file in personalList) {
+          if (file.name != '.keep') {
+            await serviceClient.storage
+                .from('senorita-images-bucket')
+                .remove(['$personalPath${file.name}']);
+            print('✅ Deleted: $personalPath${file.name}');
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error deleting personal photos: $e');
+      }
+      
+      // Delete verification images
+      final verificationPath = '$userId/verification/';
+      try {
+        final verificationList = await serviceClient.storage
+            .from('senorita-images-bucket')
+            .list(path: verificationPath);
+        
+        for (final file in verificationList) {
+          if (file.name != '.keep') {
+            await serviceClient.storage
+                .from('senorita-images-bucket')
+                .remove(['$verificationPath${file.name}']);
+            print('✅ Deleted: $verificationPath${file.name}');
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error deleting verification photos: $e');
+      }
+      
+      print('✅ All photos deleted for user: $userId');
+    } catch (e) {
+      print('❌ Error deleting user photos: $e');
+      rethrow;
     }
   }
 }
